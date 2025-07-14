@@ -8,52 +8,53 @@ A comprehensive medication dosage management application built with Flutter. Dos
   - Support for multiple medication types:
     - Tablets
     - Capsules
-    - Liquid Vials
-    - Reconstitutable Vials
-    - Pre-filled Syringes
-  - Detailed medication tracking with strength and volume calculations
+    - Injections (includes pre-filled syringes and vials)
+  - Detailed medication tracking with strength and inventory management
+  - Offline-first functionality for reliable access without internet
 
-- **Dosage Scheduling**
-  - Flexible scheduling options:
-    - Multiple times per day
-    - Daily doses
-    - Specific days scheduling
-    - Days On/Off patterns
-    - Weekly and monthly patterns
-  - Custom time selection for each dose
+- **Modern UI**
+  - Dark theme optimized for readability
+  - Dashboard-style home screen with statistics
+  - Intuitive navigation and medication management
 
-- **Treatment Cycles**
-  - Various cycle types:
-    - Never-ending treatments
-    - Date-based end points
-    - Days/Weeks/Months On/Off patterns
-  - Dose switching support
-  - Break period management
+- **Reconstitution Calculator**
+  - Calculate precise dosages for reconstitutable medications
+  - Visual syringe representation
 
-- **Supply Management**
-  - Track medical supplies
-  - Monitor unit quantities
-  - Volume tracking per unit
+- **Security**
+  - End-to-end encryption for medication data
+  - Firebase Authentication
+  - Secure local storage
 
 ## Project Structure
 
 ```
 lib/
-├── constants/          # Variable definitions and calculations
+├── constants/         # Variable definitions and calculations
 │   ├── med_variables.dart
 │   ├── dose_variables.dart
 │   ├── cycles_variables.dart
 │   ├── schedules_variables.dart
 │   └── supplies_variables.dart
-├── models/            # Data models
+├── models/           # Data models
 │   ├── medication.dart
 │   ├── dose.dart
-│   └── schedule.dart
-├── screens/           # UI screens
-│   ├── auth/         # Authentication screens
-│   └── home/         # Main app screens
-├── services/         # Business logic and services
-└── main.dart         # App entry point
+│   ├── schedule.dart
+│   └── reconstitution_calculator.dart
+├── screens/          # UI screens
+│   ├── auth/        # Authentication screens
+│   ├── home/        # Main app screens
+│   └── medications/ # Medication management screens
+├── services/        # Business logic and services
+│   ├── encryption_service.dart
+│   └── firebase_service.dart
+├── theme/           # App theming
+│   ├── app_colors.dart
+│   ├── app_decorations.dart
+│   ├── app_text_styles.dart
+│   └── app_theme.dart
+├── widgets/         # Reusable UI components
+└── main.dart        # App entry point
 ```
 
 ## Getting Started
@@ -69,7 +70,7 @@ lib/
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/yourusername/dosify_cursor.git
 ```
 
 2. Navigate to the project directory:
@@ -95,6 +96,14 @@ flutter run
 4. Enable Authentication in Firebase Console
 5. Configure Firebase options in the app
 
+## Recent Improvements
+
+- **UI Enhancements**: Implemented a modern dark theme with improved readability
+- **Medication Model**: Simplified medication types by merging injection categories
+- **Dashboard**: Added a statistics dashboard to the home screen
+- **Offline Support**: Enhanced offline-first functionality with local storage
+- **Security**: Implemented end-to-end encryption for sensitive medication data
+
 ## Development Guidelines
 
 - Follow the variables table structure for all calculations
@@ -104,9 +113,10 @@ flutter run
 
 ## Security Features
 
-- Secure storage for sensitive data
+- End-to-end encryption using AES
+- Secure local storage with SharedPreferences
 - Firebase Authentication integration
-- Encrypted data transmission
+- Offline-first approach with data synchronization
 
 ## Contributing
 
@@ -125,7 +135,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Flutter team for the excellent framework
 - Firebase for backend services
 - Contributors and testers
-
-## Contact
-
-For support or queries, please contact [project-contact-email]

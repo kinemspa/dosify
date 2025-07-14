@@ -1,10 +1,7 @@
 enum MedicationType {
   tablet,
   capsule,
-  vialPowderedRecon,
-  vialPowderedKnown,
-  vialPreMixed,
-  preFilledSyringe
+  injection // Merged all injection types (vials and pre-filled syringes)
 }
 
 class Medication {
@@ -19,10 +16,14 @@ class Medication {
   DateTime? lastInventoryUpdate;
   
   // Additional fields based on type
-  // For reconstituted medications
+  // For injection medications
   final double? reconstitutionVolume;
   final String? reconstitutionVolumeUnit;
   final double? concentrationAfterReconstitution;
+  
+  // Injection-specific fields
+  final bool? needsReconstitution; // True for powdered vials
+  final bool? isPreFilled; // True for pre-filled syringes
   
   Medication({
     required this.id,
@@ -37,6 +38,8 @@ class Medication {
     this.reconstitutionVolume,
     this.reconstitutionVolumeUnit,
     this.concentrationAfterReconstitution,
+    this.needsReconstitution,
+    this.isPreFilled,
   });
 
   // Create a copy of this medication with updated inventory
@@ -54,6 +57,8 @@ class Medication {
       reconstitutionVolume: reconstitutionVolume,
       reconstitutionVolumeUnit: reconstitutionVolumeUnit,
       concentrationAfterReconstitution: concentrationAfterReconstitution,
+      needsReconstitution: needsReconstitution,
+      isPreFilled: isPreFilled,
     );
   }
 } 

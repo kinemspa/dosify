@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_form_builder/flutter_form_builder.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_decorations.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,181 +12,176 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormBuilderState>();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    // Disable reCAPTCHA verification for testing
-    FirebaseAuth.instance.setSettings(appVerificationDisabledForTesting: true);
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState?.saveAndValidate() ?? false) {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
-        _isLoading = true;
-        _errorMessage = null;
+        _errorMessage = 'Passwords do not match';
       });
+      return;
+    }
 
-      try {
-        final values = _formKey.currentState!.value;
-        if (values['password'] != values['confirmPassword']) {
-          throw FirebaseAuthException(
-            code: 'passwords-dont-match',
-            message: 'Passwords do not match',
-          );
-        }
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-        // Create user with email and password
-        final userCredential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-          email: values['email'].toString().trim(),
-          password: values['password'].toString(),
-        )
-            .timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            throw FirebaseAuthException(
-              code: 'timeout',
-              message: 'Registration timed out. Please try again.',
-            );
-          },
-        );
-
-        // Update user profile
-        await userCredential.user?.updateDisplayName(values['name']);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context); // Return to login screen
-        }
-      } on FirebaseAuthException catch (e) {
-        setState(() {
-          switch (e.code) {
-            case 'email-already-in-use':
-              _errorMessage = 'This email is already registered.';
-              break;
-            case 'invalid-email':
-              _errorMessage = 'Please enter a valid email address.';
-              break;
-            case 'operation-not-allowed':
-              _errorMessage = 'Email/password registration is not enabled.';
-              break;
-            case 'weak-password':
-              _errorMessage = 'Please use a stronger password.';
-              break;
-            case 'timeout':
-              _errorMessage = 'Registration timed out. Please try again.';
-              break;
-            default:
-              _errorMessage = e.message ?? 'An error occurred during registration.';
-          }
-        });
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'An error occurred. Please try again.';
-        });
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      
+      if (mounted) {
+        Navigator.pop(context); // Return to login screen after successful registration
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An unexpected error occurred';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Create Account'),
+        elevation: 0,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              FormBuilder(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    FormBuilderTextField(
-                      name: 'name',
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: FormBuilderValidators.compose([
-                        FormBuilderValidators.required(),
-                      ]),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: AppSpacing.paddingLG,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Join Dosify',
+                    style: AppTextStyles.h1,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create an account to get started',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: AppColors.textSecondary,
                     ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: AppDecorations.inputField(
+                      labelText: 'Email',
+                      hintText: 'Enter your email',
+                      prefixIcon: const Icon(Icons.email_outlined),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Please enter a valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: AppDecorations.inputField(
+                      labelText: 'Password',
+                      hintText: 'Create a password',
+                      prefixIcon: const Icon(Icons.lock_outlined),
+                    ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a password';
+                      }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    decoration: AppDecorations.inputField(
+                      labelText: 'Confirm Password',
+                      hintText: 'Confirm your password',
+                      prefixIcon: const Icon(Icons.lock_outlined),
+                    ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
-                    FormBuilderTextField(
-                      name: 'email',
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
+                    Text(
+                      _errorMessage!,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.error,
                       ),
-                      validator: FormBuilderValidators.compose([
-                        FormBuilderValidators.required(),
-                        FormBuilderValidators.email(),
-                      ]),
-                    ),
-                    const SizedBox(height: 16),
-                    FormBuilderTextField(
-                      name: 'password',
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                      validator: FormBuilderValidators.compose([
-                        FormBuilderValidators.required(),
-                        FormBuilderValidators.minLength(6),
-                      ]),
-                    ),
-                    const SizedBox(height: 16),
-                    FormBuilderTextField(
-                      name: 'confirmPassword',
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm Password',
-                        border: OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                      validator: FormBuilderValidators.compose([
-                        FormBuilderValidators.required(),
-                        FormBuilderValidators.minLength(6),
-                      ]),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _register,
-                        child: _isLoading
-                            ? const CircularProgressIndicator()
-                            : const Text('Create Account'),
-                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
-                ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    style: AppDecorations.primaryButton,
+                    onPressed: _isLoading ? null : _register,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Create Account'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
