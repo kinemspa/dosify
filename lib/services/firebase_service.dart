@@ -29,6 +29,11 @@ class FirebaseService {
   static const String _medicationsKey = 'local_medications';
   static const String _lastSyncKey = 'last_sync_time';
   static const String _firestoreAvailableKey = 'firestore_available';
+  
+  // Timeout durations
+  static const Duration _firebaseConnectionTimeout = Duration(seconds: 15);
+  static const Duration _firebaseOperationTimeout = Duration(seconds: 10);
+  static const Duration _firebaseStreamTimeout = Duration(seconds: 30);
 
   /// Creates a new FirebaseService instance with required dependencies
   FirebaseService({
@@ -69,7 +74,7 @@ class FirebaseService {
         try {
           // Test if Firestore is available with a timeout
           await _firestore.collection('test').doc('test').get()
-              .timeout(const Duration(seconds: 5), onTimeout: () {
+              .timeout(_firebaseConnectionTimeout, onTimeout: () {
             throw TimeoutException('Firestore connection timed out');
           });
         } catch (e) {
@@ -281,7 +286,7 @@ class FirebaseService {
         // Try to check if Firestore is available now
         try {
           await _firestore.collection('test').doc('test').get()
-              .timeout(const Duration(seconds: 5));
+              .timeout(_firebaseConnectionTimeout);
           
           // If we get here, Firestore is available again
           _isFirestoreAvailable = true;
@@ -289,7 +294,7 @@ class FirebaseService {
           
           // Try to save to Firebase again
           try {
-            print('Retrying Firebase save for ${medication.name}...');
+            _log('Retrying Firebase save for ${medication.name}...');
             
             // Encrypt sensitive data before sending to Firebase
             Map<String, dynamic> encryptedDataForFirebase = await _encryptDataForFirebase(medicationData);
@@ -300,14 +305,14 @@ class FirebaseService {
                 .collection('medications')
                 .doc(medication.id)
                 .set(encryptedDataForFirebase)
-                .timeout(const Duration(seconds: 3));
+                .timeout(_firebaseOperationTimeout);
             
-            print('Retry Firebase save successful!');
+            _log('Retry Firebase save successful!');
           } catch (e) {
-            print('Retry Firebase save failed: $e');
+            _log('Retry Firebase save failed: $e');
           }
         } catch (e) {
-          print('Firestore is still unavailable during retry: $e');
+          _log('Firestore is still unavailable during retry: $e');
         }
       }
     });
@@ -462,26 +467,7 @@ class FirebaseService {
       if (cachedMedications != null) {
         try {
           medications = cachedMedications.map((item) {
-            return Medication(
-              id: item['id'],
-              name: item['name'],
-              type: _parseMedicationType(item['type']),
-              strength: item['strength'],
-              strengthUnit: item['strengthUnit'],
-              quantity: item['quantity'],
-              quantityUnit: item['quantityUnit'],
-              currentInventory: item['currentInventory'],
-              lastInventoryUpdate: DateTime.parse(item['lastInventoryUpdate']),
-              reconstitutionVolume: item['reconstitutionVolume'],
-              reconstitutionVolumeUnit: item['reconstitutionVolumeUnit'],
-              concentrationAfterReconstitution: item['concentrationAfterReconstitution'],
-              isPreFilled: item['isPreFilled'],
-              needsReconstitution: item['needsReconstitution'],
-              isPrefillPen: item['isPrefillPen'],
-              injectionType: _parseInjectionType(item['injectionType']),
-              routeOfAdministration: item['routeOfAdministration'],
-              diluent: item['diluent'],
-            );
+            return Medication.fromJson(json.encode(item));
           }).toList();
           
           _log('Retrieved ${medications.length} medications from cache');
@@ -539,7 +525,7 @@ class FirebaseService {
             if (_cacheManager != null) {
               await _cacheManager!.set(
                 'medications_$userId', 
-                medications.map((m) => m.toJson()).toList(),
+                medications.map((m) => json.decode(m.toJson())).toList(),
                 ttl: const Duration(minutes: 30),
               );
             }
@@ -554,7 +540,7 @@ class FirebaseService {
         // Set up regular stream (either as fallback or primary method)
         await for (var snapshot in query
             .snapshots()
-            .timeout(const Duration(seconds: 5), onTimeout: (sink) {
+            .timeout(_firebaseStreamTimeout, onTimeout: (sink) {
               _log('Firebase stream timed out');
               sink.close();
             })) {
@@ -577,7 +563,7 @@ class FirebaseService {
           if (_cacheManager != null) {
             await _cacheManager!.set(
               'medications_$userId', 
-              medications.map((m) => m.toJson()).toList(),
+              medications.map((m) => json.decode(m.toJson())).toList(),
               ttl: const Duration(minutes: 30),
             );
           }
@@ -606,7 +592,7 @@ class FirebaseService {
           try {
             _log('Checking if Firestore is available now...');
             await _firestore.collection('test').doc('test').get()
-                .timeout(const Duration(seconds: 5));
+                .timeout(_firebaseConnectionTimeout);
             
             // If we get here, Firestore is available
             _log('Firestore is now available!');
