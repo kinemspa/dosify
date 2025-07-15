@@ -15,17 +15,49 @@ class AppDecorations {
     ],
   );
   
-  // Gradient Background
-  static BoxDecoration gradientBackground = const BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        AppColors.primary,
-        AppColors.primaryDark,
-      ],
-    ),
-  );
+  // Gradient Background - Updated to use theme-specific colors
+  static BoxDecoration gradientBackground(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark 
+          ? [
+              AppColors.darkPrimary,
+              AppColors.darkPrimaryDark,
+            ]
+          : [
+              AppColors.lightPrimary,
+              AppColors.lightPrimaryDark,
+            ],
+      ),
+    );
+  }
+
+  // Screen Background - Gradient for dark mode, light color for light mode
+  static BoxDecoration screenBackground(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (isDark) {
+      return gradientBackground(context);
+    } else {
+      return BoxDecoration(
+        color: AppColors.lightBackground,
+      );
+    }
+  }
+
+  // Light Container Background
+  static BoxDecoration lightContainerBackground(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return BoxDecoration(
+      color: isDark ? AppColors.darkSurface : AppColors.lightBackground,
+      borderRadius: BorderRadius.circular(12),
+    );
+  }
 
   // Input Decorations
   static InputDecoration inputField({
@@ -34,6 +66,8 @@ class AppDecorations {
     String? suffixText,
     Widget? prefixIcon,
     Widget? suffixIcon,
+    String? helperText,
+    String? errorText,
   }) {
     return InputDecoration(
       labelText: labelText,
@@ -41,23 +75,25 @@ class AppDecorations {
       suffixText: suffixText,
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
+      helperText: helperText,
+      errorText: errorText,
       filled: true,
       fillColor: AppColors.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.secondary, width: 2),
+        borderSide: BorderSide(color: AppColors.secondary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.error),
+        borderSide: BorderSide(color: AppColors.error),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       labelStyle: TextStyle(color: AppColors.textSecondary),
@@ -88,7 +124,7 @@ class AppDecorations {
 
   static ButtonStyle outlinedButton = OutlinedButton.styleFrom(
     foregroundColor: AppColors.secondary,
-    side: const BorderSide(color: AppColors.secondary),
+    side: BorderSide(color: AppColors.secondary),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(8),
     ),

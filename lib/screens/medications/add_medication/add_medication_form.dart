@@ -3,6 +3,7 @@ import '../../models/medication.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_decorations.dart';
+import '../../widgets/medication_confirmation_dialog.dart';
 
 class AddMedicationForm extends StatefulWidget {
   final MedicationType medicationType;
@@ -43,12 +44,15 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
       case MedicationType.tablet:
       case MedicationType.capsule:
         return 'tablets';
-      case MedicationType.preFilledSyringe:
-        return 'syringes';
-      case MedicationType.vialPreMixed:
-      case MedicationType.vialPowderedKnown:
-      case MedicationType.vialPowderedRecon:
+      case MedicationType.injection:
         return 'vials';
+      // The following cases are commented out as they are planned for future expansion
+      // case MedicationType.preFilledSyringe:
+      //   return 'syringes';
+      // case MedicationType.vialPreMixed:
+      // case MedicationType.vialPowderedKnown:
+      // case MedicationType.vialPowderedRecon:
+      //   return 'vials';
     }
   }
 
@@ -78,6 +82,70 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
     _quantityController.dispose();
     _currentInventoryController.dispose();
     super.dispose();
+  }
+
+  // Update the confirmation dialog in the add_medication_form.dart file
+  // Make it more conversational and improve the display of total medicine
+
+  Future<bool> _showConfirmationDialog(BuildContext context, {
+    required String name,
+    required double strength,
+    required String strengthUnit,
+    required double quantity,
+    required String quantityUnit,
+  }) async {
+    // Calculate total medicine
+    final double totalMedicine = strength * quantity;
+    
+    // Format total medicine string with appropriate units
+    String totalMedicineStr;
+    if (strengthUnit == 'mcg' && totalMedicine >= 1000) {
+      // Convert to mg if possible and show both
+      final double mgValue = totalMedicine / 1000;
+      totalMedicineStr = '${totalMedicine.toInt()} mcg (${mgValue.toStringAsFixed(mgValue.truncateToDouble() == mgValue ? 0 : 2)} mg)';
+    } else if (strengthUnit == 'mg' && totalMedicine >= 1000) {
+      // Convert to g if possible and show both
+      final double gValue = totalMedicine / 1000;
+      totalMedicineStr = '${totalMedicine.toInt()} mg (${gValue.toStringAsFixed(gValue.truncateToDouble() == gValue ? 0 : 2)} g)';
+    } else {
+      // Format to remove trailing zeros
+      if (totalMedicine == totalMedicine.toInt()) {
+        totalMedicineStr = '${totalMedicine.toInt()} $strengthUnit';
+      } else {
+        totalMedicineStr = '$totalMedicine $strengthUnit';
+      }
+    }
+
+    return await MedicationConfirmationDialog.show(
+      context: context,
+      title: 'Save $name?',
+      items: [
+        ConfirmationItem(
+          label: 'Medication Name:',
+          value: name,
+          icon: Icons.medication,
+          color: Colors.blue,
+        ),
+        ConfirmationItem(
+          label: 'Strength:',
+          value: '$strength $strengthUnit per $quantityUnit',
+          icon: Icons.fitness_center,
+          color: Colors.green,
+        ),
+        ConfirmationItem(
+          label: 'In Stock:',
+          value: '$quantity $quantityUnit',
+          icon: Icons.inventory_2,
+          color: Colors.orange,
+        ),
+        ConfirmationItem(
+          label: 'Total Medicine:',
+          value: 'You have $totalMedicineStr total',
+          icon: Icons.calculate,
+          color: Colors.purple,
+        ),
+      ],
+    ) ?? false;
   }
 
   @override

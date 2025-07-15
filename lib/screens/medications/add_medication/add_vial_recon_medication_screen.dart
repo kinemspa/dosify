@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/medication.dart';
 import '../../theme/app_decorations.dart';
 import '../../services/firebase_service.dart';
+import '../../widgets/input_field_row.dart';
 import 'package:uuid/uuid.dart';
 import 'add_medication_form.dart';
 
@@ -60,7 +61,8 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
       final medication = Medication(
         id: uuid,
         name: data['name'],
-        type: MedicationType.vialPowderedRecon,
+        // Using injection type instead of vialPowderedRecon (planned for future expansion)
+        type: MedicationType.injection,
         strength: data['strength'],
         strengthUnit: data['strengthUnit'],
         quantity: data['quantity'],
@@ -70,6 +72,8 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
         reconstitutionVolume: double.parse(_reconVolumeController.text),
         reconstitutionVolumeUnit: _reconVolumeUnit,
         concentrationAfterReconstitution: double.parse(_concentrationController.text),
+        // Additional fields for injection type
+        needsReconstitution: true, // This is a reconstitution vial
       );
 
       // Save medication to Firebase
@@ -112,51 +116,18 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _reconVolumeController,
-                decoration: AppDecorations.inputField(
-                  labelText: 'Reconstitution Volume',
-                  hintText: 'Enter volume',
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Required';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Invalid number';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _reconVolumeUnit,
-                decoration: AppDecorations.inputField(
-                  labelText: 'Unit',
-                ),
-                items: ['mL']
-                    .map((unit) => DropdownMenuItem(
-                          value: unit,
-                          child: Text(unit),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _reconVolumeUnit = value;
-                    });
-                  }
-                },
-              ),
-            ),
-          ],
+        InputFieldRow(
+          label: 'Reconstitution Volume',
+          controller: _reconVolumeController,
+          unitValue: _reconVolumeUnit,
+          unitOptions: const ['mL'],
+          onUnitChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _reconVolumeUnit = value;
+              });
+            }
+          },
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -184,7 +155,8 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
   @override
   Widget build(BuildContext context) {
     return AddMedicationForm(
-      medicationType: MedicationType.vialPowderedRecon,
+      // Using injection type instead of vialPowderedRecon (planned for future expansion)
+      medicationType: MedicationType.injection,
       title: 'Add Reconstitution Vial',
       additionalFields: _buildReconstitutionFields(),
       onSave: (data) => _handleSave(context, data),

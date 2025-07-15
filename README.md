@@ -1,34 +1,9 @@
 # Dosify
 
-A comprehensive medication dosage management application built with Flutter. Dosify helps users track and manage their medication schedules, doses, and supplies with precision and ease.
-
-## Features
-
-- **Medication Management**
-  - Support for multiple medication types:
-    - Tablets
-    - Capsules
-    - Injections (includes pre-filled syringes and vials)
-  - Detailed medication tracking with strength and inventory management
-  - Offline-first functionality for reliable access without internet
-
-- **Modern UI**
-  - Dark theme optimized for readability
-  - Dashboard-style home screen with statistics
-  - Intuitive navigation and medication management
-
-- **Reconstitution Calculator**
-  - Calculate precise dosages for reconstitutable medications
-  - Visual syringe representation
-
-- **Security**
-  - End-to-end encryption for medication data
-  - Firebase Authentication
-  - Secure local storage
+A medication management app built with Flutter.
 
 ## Project Structure
 
-```
 lib/
 ├── constants/         # Variable definitions and calculations
 │   ├── med_variables.dart
@@ -43,95 +18,307 @@ lib/
 │   └── reconstitution_calculator.dart
 ├── screens/          # UI screens
 │   ├── auth/        # Authentication screens
+│   ├── base_service_screen.dart # Base screen with service access
 │   ├── home/        # Main app screens
 │   └── medications/ # Medication management screens
+│       └── add_medication/ # Specialized medication input screens
 ├── services/        # Business logic and services
 │   ├── encryption_service.dart
-│   └── firebase_service.dart
+│   ├── firebase_service.dart
+│   └── service_locator.dart # Dependency injection container
 ├── theme/           # App theming
 │   ├── app_colors.dart
-│   ├── app_decorations.dart
 │   ├── app_text_styles.dart
-│   └── app_theme.dart
-├── widgets/         # Reusable UI components
-└── main.dart        # App entry point
+│   └── app_decorations.dart
+└── widgets/         # Reusable UI components
+    ├── help_card.dart # Help card components
+    └── upcoming_doses_widget.dart # Upcoming doses display
+
+## Architecture
+
+Dosify follows a service-oriented architecture with dependency injection for better testability and maintainability.
+
+### Dependency Injection
+
+The app uses the `get_it` package to implement a service locator pattern for dependency injection:
+
+```dart
+// Service registration
+serviceLocator.registerLazySingleton<FirebaseService>(
+  () => FirebaseService(
+    firestore: serviceLocator<FirebaseFirestore>(),
+    auth: serviceLocator<FirebaseAuth>(),
+    encryptionService: serviceLocator<EncryptionService>(),
+    prefs: serviceLocator<SharedPreferences>(),
+  ),
+);
+
+// Service usage in screens
+final FirebaseService firebaseService = serviceLocator<FirebaseService>();
 ```
 
-## Getting Started
+### Base Service Screen
 
-### Prerequisites
+All screens that need access to services inherit from `BaseServiceScreen`, which provides:
 
-- Flutter SDK (latest version)
-- Android Studio / VS Code with Flutter extensions
-- Firebase project setup
-- Android SDK version 23 or higher
+- Access to all registered services
+- Common UI utilities (loading dialogs, error handling)
+- Authentication state access
+- Service initialization
 
-### Installation
+```dart
+class MyScreen extends BaseServiceScreen {
+  @override
+  State<MyScreen> createState() => _MyScreenState();
+}
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/dosify_cursor.git
+class _MyScreenState extends BaseServiceScreenState<MyScreen> {
+  void loadData() {
+    // Access services directly
+    final data = await firebaseService.getData();
+    
+    // Show loading/error dialogs
+    showLoadingDialog();
+    try {
+      // Do something
+    } catch (e) {
+      showErrorDialog('Error', e.toString());
+    } finally {
+      hideDialog();
+    }
+  }
+}
 ```
 
-2. Navigate to the project directory:
-```bash
-cd dosify_cursor
+### Service Layer
+
+Services handle all business logic and data access:
+
+1. **EncryptionService**: Handles secure data storage with encryption/decryption
+2. **FirebaseService**: Manages Firebase interactions and local data caching
+3. **ServiceLocator**: Manages dependency injection and service lifecycle
+
+### UI Components
+
+Reusable UI components follow a consistent pattern:
+
+1. **Configuration-based initialization**: Components can be created from configuration objects
+2. **Consistent styling**: Components use theme data for consistent appearance
+3. **Persistence-aware**: Components can save their state when needed
+
+Example with Help Cards:
+
+```dart
+// Create a help card from configuration
+final helpCard = CollapsibleHelpCard.fromConfig(
+  HelpCardConfig(
+    title: 'Help Title',
+    content: 'Help content goes here',
+    steps: ['Step 1', 'Step 2'],
+    initiallyExpanded: true,
+  ),
+);
+
+// Persistent help card that remembers dismissal state
+final persistentCard = PersistentHelpCard.fromConfig(
+  HelpCardConfig(
+    title: 'Important Info',
+    content: 'This card remembers when dismissed',
+    storageKey: 'unique_key',
+  ),
+);
 ```
 
-3. Install dependencies:
-```bash
-flutter pub get
+## Database Integration Hierarchy
+
+Dosify implements a robust three-tiered storage architecture:
+
+### Storage Layers
+
+1. **Firebase Firestore (Cloud)**
+   - Primary data store when online
+   - Automatic synchronization
+   - User authentication integration
+   - Document-based NoSQL structure
+
+2. **Encrypted Local Storage**
+   - Secure offline data access
+   - AES-256 encryption
+   - Transparent fallback when offline
+   - Automatic sync when connection restored
+
+3. **Unencrypted Local Fallback**
+   - Last resort when encryption keys unavailable
+   - Minimal sensitive data storage
+   - Basic functionality preservation
+
+### Document Structure
+
+```
+users/
+  ├── {userId}/
+  │   ├── medications/
+  │   │   └── {medicationId}/
+  │   │       ├── details
+  │   │       └── inventory_history/
+  │   │           └── {entryId}
+  │   ├── doses/
+  │   │   └── {doseId}/
+  │   │       └── details
+  │   └── schedules/
+  │       └── {scheduleId}/
+  │           └── details
+  └── settings/
+      └── {userId}/
+          └── preferences
 ```
 
-4. Run the app:
-```bash
-flutter run
+### Data Flow Architecture
+
+```mermaid
+graph TD
+    User[User Action] --> App[App Logic]
+    App --> FirebaseService[Firebase Service]
+    FirebaseService --> IsOnline{Online?}
+    IsOnline -->|Yes| Firestore[Cloud Firestore]
+    IsOnline -->|No| LocalCheck{Encrypted<br>Storage<br>Available?}
+    LocalCheck -->|Yes| EncryptedStorage[Encrypted<br>Local Storage]
+    LocalCheck -->|No| FallbackStorage[Unencrypted<br>Fallback Storage]
+    Firestore --> SyncDown[Sync to Local]
+    SyncDown --> EncryptedStorage
+    EncryptedStorage --> SyncUp[Sync to Cloud<br>when online]
+    SyncUp --> Firestore
 ```
 
-### Firebase Setup
+### Key Integration Features
 
-1. Create a new Firebase project
-2. Add Android app to Firebase project
-3. Download `google-services.json` and place it in `android/app/`
-4. Enable Authentication in Firebase Console
-5. Configure Firebase options in the app
+1. **Offline-First Operation**
+   - App functions fully offline
+   - Transparent sync when connection available
+   - No disruption to user experience
 
-## Recent Improvements
+2. **Data Encryption**
+   - AES-256 encryption for all sensitive data
+   - Secure key storage using platform security features
+   - Transparent encryption/decryption
 
-- **UI Enhancements**: Implemented a modern dark theme with improved readability
-- **Medication Model**: Simplified medication types by merging injection categories
-- **Dashboard**: Added a statistics dashboard to the home screen
-- **Offline Support**: Enhanced offline-first functionality with local storage
-- **Security**: Implemented end-to-end encryption for sensitive medication data
+3. **Failsafe Mechanisms**
+   - Graceful degradation across storage tiers
+   - Data integrity validation
+   - Automatic recovery procedures
 
-## Development Guidelines
+4. **Data Access Patterns**
+   - Optimized query caching
+   - Batched write operations
+   - Incremental updates
 
-- Follow the variables table structure for all calculations
-- Maintain consistent naming conventions
-- Add comprehensive documentation for new features
-- Ensure proper error handling and validation
+5. **Authentication Integration**
+   - Firebase Authentication
+   - User-specific data isolation
+   - Permission-based access control
 
-## Security Features
+## Code Improvement Plan
 
-- End-to-end encryption using AES
-- Secure local storage with SharedPreferences
-- Firebase Authentication integration
-- Offline-first approach with data synchronization
+### Critical Issues
 
-## Contributing
+1. **Duplicate Schedule Models**
+   - Two nearly identical schedule models exist: `Schedule` and `MedicationSchedule`
+   - Causes enum conflicts with duplicate `DoseStatus` definitions
+   - Creates confusion in the codebase and type conversion issues
+   - **Solution**: Consolidate into a single model with medication-specific fields optional
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. **Encryption Service Issues**
+   - Incorrect import usage causing namespace conflicts with `encrypt` package
+   - Missing implementation of critical methods (`encrypt`, `decrypt`)
+   - **Solution**: Fix imports and implement missing methods
 
-## License
+3. **Firebase Service Type Conflicts**
+   - Stream vs List type conflicts in `getMedications()` method
+   - Missing methods (`getDose`, `getMedication`)
+   - **Solution**: Implement missing methods and fix return type handling
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Improvement Priorities
 
-## Acknowledgments
+1. **Model Consolidation**
+   - Merge `Schedule` and `MedicationSchedule` into a single model
+   - Standardize on one `DoseStatus` enum
+   - Update all references throughout the codebase
 
-- Flutter team for the excellent framework
-- Firebase for backend services
-- Contributors and testers
+2. **Service Layer Fixes**
+   - Complete the encryption service implementation
+   - Fix Firebase service method signatures and implementations
+   - Add proper error handling and logging
+
+3. **Code Organization**
+   - Implement proper dependency injection
+   - Add comprehensive documentation
+   - Improve test coverage
+
+4. **Performance Optimization**
+   - Optimize database queries
+   - Implement caching for frequently accessed data
+   - Reduce unnecessary rebuilds in the UI
+
+### Implementation Plan
+
+1. Fix critical build errors
+2. Consolidate schedule models
+3. Complete service implementations
+4. Refactor for better organization and maintainability
+5. Add comprehensive tests
+6. Optimize performance
+
+## Performance Optimizations
+
+The app includes several performance optimizations to ensure smooth operation even with large datasets:
+
+### Query Optimization
+
+The `QueryOptimizer` class provides optimized Firestore queries with:
+
+1. **Intelligent Caching**: Queries are cached with configurable TTL (Time To Live)
+2. **Automatic Retry**: Failed queries are automatically retried with exponential backoff
+3. **Batch Operations**: Write operations are automatically batched to avoid Firestore limits
+4. **Fallback Mechanisms**: Gracefully falls back to cached data when network is unavailable
+
+```dart
+// Example of optimized query
+final snapshot = await queryOptimizer.getQueryWithCache(
+  query,
+  cacheKey: 'medications_query_$userId',
+  cacheDuration: const Duration(minutes: 5),
+);
+```
+
+### Multi-Level Caching
+
+The `CacheManager` provides a sophisticated caching system with:
+
+1. **Memory Cache**: Ultra-fast in-memory cache for frequently accessed data
+2. **Persistent Cache**: Data persists across app restarts
+3. **TTL Support**: Time-based cache expiration
+4. **Type Safety**: Generic methods for type-safe cache access
+
+```dart
+// Example of cache usage
+final cachedData = cacheManager.get<List<Medication>>('key');
+await cacheManager.set('key', data, ttl: Duration(hours: 1));
+```
+
+### Offline Support
+
+The app is designed to work seamlessly offline:
+
+1. **Firestore Persistence**: Automatic caching of Firestore data
+2. **Local-First Operations**: Operations work locally first, then sync when online
+3. **Background Sync**: Data is synchronized in the background when connectivity is restored
+4. **Conflict Resolution**: Smart merging of local and remote data
+
+### Memory Management
+
+Efficient memory usage through:
+
+1. **Lazy Loading**: Data is loaded only when needed
+2. **Resource Cleanup**: Proper disposal of resources when no longer needed
+3. **Stream Management**: Efficient handling of Firestore streams
+4. **Cache Eviction**: Automatic cleanup of expired cache entries

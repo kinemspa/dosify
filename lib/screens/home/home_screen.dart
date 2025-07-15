@@ -1,61 +1,159 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../../models/medication.dart';
 import '../../services/firebase_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_decorations.dart';
-import '../medications/add_medication_type_screen.dart';
+import '../../theme/theme_provider.dart';
+import '../base_service_screen.dart';
+import '../medications/add_medication/add_medication_type_screen.dart';
 import '../medications/medication_list_screen.dart';
-import '../medications/reconstitution_calculator_screen.dart';
+import '../medications/tools/reconstitution_calculator_screen.dart';
+import '../medications/details/medication_detail_screen.dart';
+import '../../widgets/upcoming_doses_widget.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends BaseServiceScreen {
   const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends BaseServiceScreenState<HomeScreen> {
   int _selectedIndex = 0;
-  final FirebaseService _firebaseService = FirebaseService();
+
+  // Method to navigate to a specific tab
+  void navigateToTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Check if we need to navigate to a specific tab based on route settings
+    final settings = ModalRoute.of(context)?.settings;
+    if (settings != null && settings.name != null) {
+      switch (settings.name) {
+        case '/medications':
+          setState(() {
+            _selectedIndex = 1;
+          });
+          break;
+        case '/schedule':
+          setState(() {
+            _selectedIndex = 2;
+          });
+          break;
+        case '/settings':
+          setState(() {
+            _selectedIndex = 3;
+          });
+          break;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dosify'),
-        centerTitle: true,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Dosify'),
+              Text(
+                _getScreenTitle(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+        centerTitle: false,
+        titleSpacing: 0,
         elevation: 0,
       ),
       body: _buildCurrentPage(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkPrimary
+                  : AppColors.lightPrimary,
+              Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkPrimaryDark
+                  : AppColors.lightPrimaryDark,
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.medication),
-            label: 'Medications',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Schedule',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white.withOpacity(0.6),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.medication),
+              label: 'Medications',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today),
+              label: 'Schedule',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: 'Settings',
+            ),
+          ],
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+        ),
       ),
+      floatingActionButton: _buildFloatingActionButton(),
     );
+  }
+  
+  String _getScreenTitle() {
+    switch (_selectedIndex) {
+      case 0:
+        return 'Dashboard';
+      case 1:
+        return 'Medications';
+      case 2:
+        return 'Schedule';
+      case 3:
+        return 'Settings';
+      default:
+        return 'Dashboard';
+    }
   }
   
   Widget _buildCurrentPage() {
@@ -67,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return const SchedulePage();
       case 3:
-        return const ProfilePage();
+        return const SettingsPage();
       default:
         return const DashboardPage();
     }
@@ -92,318 +190,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends BaseServiceScreen {
   const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
-  final FirebaseService _firebaseService = FirebaseService();
-  
+class _DashboardPageState extends BaseServiceScreenState<DashboardPage> {
+  int _selectedStatIndex = 0;
+  bool _isLoading = true;
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: AppDecorations.gradientBackground,
-      child: SafeArea(
-        child: StreamBuilder<List<Medication>>(
-          stream: _firebaseService.getMedications(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              );
-            }
-            
-            final medications = snapshot.data ?? [];
-            
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome section
-                  const Text(
-                    'Welcome to Dosify',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Track and manage your medications easily',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Stats cards
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        context,
-                        title: 'Total Medications',
-                        value: medications.length.toString(),
-                        icon: Icons.medication,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        context,
-                        title: 'Injections',
-                        value: medications.where((m) => m.type == MedicationType.injection).length.toString(),
-                        icon: Icons.vaccines,
-                        color: Colors.teal,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        context,
-                        title: 'Tablets',
-                        value: medications.where((m) => m.type == MedicationType.tablet).length.toString(),
-                        icon: Icons.local_pharmacy,
-                        color: Colors.purple,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        context,
-                        title: 'Capsules',
-                        value: medications.where((m) => m.type == MedicationType.capsule).length.toString(),
-                        icon: Icons.medication_liquid,
-                        color: Colors.orange,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Quick actions
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Quick action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildQuickActionButton(
-                        context,
-                        icon: Icons.add,
-                        label: 'Add Medication',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const AddMedicationTypeScreen()),
-                          );
-                        },
-                      ),
-                      _buildQuickActionButton(
-                        context,
-                        icon: Icons.calculate,
-                        label: 'Reconstitution Calculator',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const ReconstitutionCalculatorScreen()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Recent medications
-                  const Text(
-                    'Recent Medications',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Recent medications list
-                  if (medications.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'No medications added yet',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: medications.length > 3 ? 3 : medications.length,
-                        itemBuilder: (context, index) {
-                          final medication = medications[index];
-                          return ListTile(
-                            leading: _getMedicationIcon(medication.type),
-                            title: Text(
-                              medication.name,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              '${medication.strength} ${medication.strengthUnit}',
-                              style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                            ),
-                            trailing: Text(
-                              '${medication.currentInventory} ${medication.quantityUnit}',
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _initializeFirebase();
+  }
+
+  Future<void> _initializeFirebase() async {
+    try {
+      await firebaseService.initialize();
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
   
-  Widget _buildStatCard(BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 24,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildQuickActionButton(BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 150,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: AppColors.secondary,
-              size: 32,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _getMedicationIcon(MedicationType type) {
+  Widget _buildMedicationListItem(BuildContext context, Medication medication) {
     IconData icon;
     Color color;
-    
-    switch (type) {
+
+    switch (medication.type) {
       case MedicationType.tablet:
         icon = Icons.local_pharmacy;
         color = Colors.blue;
@@ -417,302 +238,469 @@ class _DashboardPageState extends State<DashboardPage> {
         color = Colors.teal;
         break;
     }
-    
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 24,
-      ),
-    );
-  }
-}
 
-class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key});
-
-  @override
-  State<SchedulePage> createState() => _SchedulePageState();
-}
-
-class _SchedulePageState extends State<SchedulePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: AppDecorations.gradientBackground,
-      child: const Center(
-        child: Text(
-          'Schedule Feature Coming Soon',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.white,
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 24,
           ),
         ),
+        title: Text(
+          medication.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          '${medication.currentInventory.toInt()} ${medication.quantityUnit} in stock',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MedicationDetailScreen(
+                medication: medication,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
-}
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
-
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  final FirebaseService _firebaseService = FirebaseService();
-  bool _isLoading = false;
-  String _statusMessage = '';
-
-  Future<void> _clearAllMedications() async {
-    if (_isLoading) return;
-    
-    setState(() {
-      _isLoading = true;
-      _statusMessage = 'Clearing all medications...';
-    });
-    
-    try {
-      await _firebaseService.clearAllMedications();
-      
-      setState(() {
-        _statusMessage = 'All medications cleared successfully!';
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error clearing medications: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-  
-  Future<void> _resetFirestoreStatus() async {
-    if (_isLoading) return;
-    
-    setState(() {
-      _isLoading = true;
-      _statusMessage = 'Resetting Firestore status...';
-    });
-    
-    try {
-      await _firebaseService.resetFirestoreStatus();
-      
-      setState(() {
-        _statusMessage = 'Firestore status reset successfully! The app will try to connect to Firestore on the next operation.';
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error resetting Firestore status: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-  
-  Future<void> _checkDatabaseStatus() async {
-    if (_isLoading) return;
-    
-    setState(() {
-      _isLoading = true;
-      _statusMessage = 'Checking database status...';
-    });
-    
-    try {
-      bool exists = await _firebaseService.checkDatabaseExists();
-      
-      setState(() {
-        if (exists) {
-          _statusMessage = 'Firestore database exists and is accessible! You can use cloud storage.';
-        } else {
-          _statusMessage = 'Firestore database does not exist or is not accessible. The app will use local storage only.';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error checking database status: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-  
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    
     return Container(
-      decoration: AppDecorations.gradientBackground,
-      child: SafeArea(
-        child: SingleChildScrollView(
+      decoration: AppDecorations.screenBackground(context),
+      child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-              // Profile Header
-              const CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.cardBackground,
-                child: Icon(
-                  Icons.account_circle,
-                  size: 80,
-                  color: AppColors.secondary,
-                ),
-              ),
-              const SizedBox(height: 16),
+              // Welcome Section
               Text(
-                user?.email ?? "Not signed in",
-                style: const TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
+                'Welcome to Dosify',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87,
                 ),
               ),
-              const SizedBox(height: 32),
-              
-              // Logout Button
-              ElevatedButton.icon(
-                onPressed: () => FirebaseAuth.instance.signOut(),
-                icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.actionButton,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              const SizedBox(height: 8),
+              Text(
+                'Your medication management assistant',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
+                      : Colors.black54,
                 ),
-              ),
-              
-              const SizedBox(height: 32),
-              const Divider(color: AppColors.border),
-              const SizedBox(height: 16),
-              
-              // Database Management Section
-              const Text(
-                'Database Management',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'If you are experiencing issues with the app, you can use these tools to manage the database.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 24),
               
-              // Database Management Buttons
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(12),
+              // Upcoming Doses Section
+              _buildSectionHeader(
+                context,
+                'Upcoming Doses',
+                Icons.schedule,
+                Colors.purple,
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: SizedBox(
+                  height: 300, // Fixed height for the upcoming doses list
+                  child: UpcomingDosesWidget(
+                    daysToShow: 7, // Show doses for the next week
+                  ),
                 ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Recent Medications Section
+              _buildSectionHeader(
+                context,
+                'Your Medications',
+                Icons.medication,
+                AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              StreamBuilder<List<Medication>>(
+                stream: firebaseService.getMedications(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading medications: ${snapshot.error}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final medications = snapshot.data ?? [];
+
+                  if (medications.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.medication_outlined,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No medications added yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AddMedicationTypeScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('ADD MEDICATION'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      ...medications
+                          .take(5) // Show only the first 5 medications
+                          .map((medication) => _buildMedicationListItem(context, medication))
+                          .toList(),
+                      if (medications.length > 5)
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextButton(
+                            onPressed: () {
+                                                              // Navigate to medications tab
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomeScreen(),
+                                    settings: const RouteSettings(name: '/medications'),
+                                  ),
+                                );
+                            },
+                            child: const Text('VIEW ALL MEDICATIONS'),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              
+              // Tools Section
+              _buildSectionHeader(
+                context,
+                'Tools',
+                Icons.build,
+                Colors.teal,
+              ),
+              const SizedBox(height: 8),
+              Card(
                 child: Column(
                   children: [
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _checkDatabaseStatus,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
+                    ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.calculate,
+                          color: Colors.teal,
+                          size: 24,
+                        ),
                       ),
-                      child: _isLoading && _statusMessage == 'Checking database status...'
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text('CHECK DATABASE STATUS'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _clearAllMedications,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                      child: _isLoading && _statusMessage == 'Clearing all medications...'
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text('CLEAR ALL MEDICATIONS'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _resetFirestoreStatus,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                      child: _isLoading && _statusMessage == 'Resetting Firestore status...'
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text('RESET FIRESTORE STATUS'),
+                      title: const Text('Reconstitution Calculator'),
+                      subtitle: const Text('Calculate powder to liquid ratios'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ReconstitutionCalculatorScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
-              
-              const SizedBox(height: 16),
-              if (_statusMessage.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _statusMessage.contains('Error')
-                        ? Colors.red.withOpacity(0.2)
-                        : _statusMessage.contains('not exist')
-                            ? Colors.orange.withOpacity(0.2)
-                            : Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _statusMessage,
-                    style: TextStyle(
-                      color: _statusMessage.contains('Error')
-                          ? Colors.red.shade100
-                          : _statusMessage.contains('not exist')
-                              ? Colors.orange.shade100
-                              : Colors.green.shade100,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
             ],
           ),
         ),
       ),
     );
   }
-} 
+  
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 24,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class SchedulePage extends StatelessWidget {
+  const SchedulePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppDecorations.screenBackground(context),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Upcoming Doses',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No scheduled doses',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add a medication and create a schedule to see it here',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
+    return Container(
+      decoration: AppDecorations.screenBackground(context),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Appearance',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          title: const Text('Dark Mode'),
+                          subtitle: const Text('Toggle between light and dark theme'),
+                          value: themeProvider.isDarkMode,
+                          onChanged: (value) {
+                            themeProvider.toggleTheme();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tools',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          leading: const Icon(Icons.calculate),
+                          title: const Text('Advanced Reconstitution Calculator'),
+                          subtitle: const Text('Calculate medication reconstitution with enhanced UI'),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ReconstitutionCalculatorScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Account',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          leading: const Icon(Icons.logout),
+                          title: const Text('Sign Out'),
+                          onTap: () {
+                            FirebaseAuth.instance.signOut();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'About',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          title: const Text('App Version'),
+                          trailing: const Text('1.0.0'),
+                        ),
+                        const Divider(),
+                        const ListTile(
+                          title: Text('Privacy Policy'),
+                          trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                        ),
+                        const Divider(),
+                        const ListTile(
+                          title: Text('Terms of Service'),
+                          trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -3,48 +3,50 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.dark,
       colorScheme: ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.secondary,
-        surface: AppColors.surface,
-        background: AppColors.background,
+        primary: AppColors.darkPrimary,
+        secondary: AppColors.darkSecondary,
+        surface: AppColors.darkSurface,
+        background: AppColors.darkBackground,
         error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
+        onSurface: AppColors.darkTextPrimary,
+        onBackground: AppColors.darkTextPrimary,
         onError: Colors.white,
       ),
       
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: AppColors.darkBackground,
       
       // Text Theme
       textTheme: TextTheme(
-        displayLarge: AppTextStyles.h1,
-        displayMedium: AppTextStyles.h2,
-        displaySmall: AppTextStyles.h3,
-        bodyLarge: AppTextStyles.bodyLarge,
-        bodyMedium: AppTextStyles.bodyMedium,
-        bodySmall: AppTextStyles.bodySmall,
-        labelLarge: AppTextStyles.buttonLarge,
-        labelMedium: AppTextStyles.buttonMedium,
+        displayLarge: AppTextStyles.h1.copyWith(color: AppColors.darkTextPrimary),
+        displayMedium: AppTextStyles.h2.copyWith(color: AppColors.darkTextPrimary),
+        displaySmall: AppTextStyles.h3.copyWith(color: AppColors.darkTextPrimary),
+        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: AppColors.darkTextPrimary),
+        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: AppColors.darkTextPrimary),
+        bodySmall: AppTextStyles.bodySmall.copyWith(color: AppColors.darkTextPrimary),
+        labelLarge: AppTextStyles.buttonLarge.copyWith(color: AppColors.darkTextPrimary),
+        labelMedium: AppTextStyles.buttonMedium.copyWith(color: AppColors.darkTextPrimary),
       ),
 
       // App Bar Theme
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.darkPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
+        titleSpacing: 16,
         titleTextStyle: AppTextStyles.h2.copyWith(color: Colors.white),
       ),
 
       // Card Theme
       cardTheme: CardThemeData(
-        color: AppColors.cardBackground,
+        color: AppColors.darkCardBackground,
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -54,32 +56,39 @@ class AppTheme {
       // Input Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: AppColors.darkSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 2),
+          borderSide: BorderSide(color: AppColors.darkSecondary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        labelStyle: AppTextStyles.inputLabel.copyWith(color: AppColors.textSecondary),
-        hintStyle: AppTextStyles.inputHint.copyWith(color: AppColors.textHint),
+        labelStyle: AppTextStyles.inputLabel.copyWith(color: AppColors.darkTextSecondary),
+        hintStyle: AppTextStyles.inputHint.copyWith(color: AppColors.darkTextHint),
+      ),
+      
+      // Text selection and cursor color
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: AppColors.darkCursor,
+        selectionColor: AppColors.darkCursor.withOpacity(0.3),
+        selectionHandleColor: AppColors.darkCursor,
       ),
 
       // Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.actionButton,
+          backgroundColor: AppColors.darkActionButton,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -91,8 +100,8 @@ class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.secondary,
-          side: const BorderSide(color: AppColors.secondary),
+          foregroundColor: AppColors.darkSecondary,
+          side: BorderSide(color: AppColors.darkSecondary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -102,8 +111,8 @@ class AppTheme {
       ),
 
       // Divider Theme
-      dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+      dividerTheme: DividerThemeData(
+        color: AppColors.darkDivider,
         thickness: 1,
         space: 1,
       ),
@@ -115,7 +124,7 @@ class AppTheme {
       
       // Floating Action Button Theme
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.actionButton,
+        backgroundColor: AppColors.darkActionButton,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -124,15 +133,151 @@ class AppTheme {
       
       // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.primary,
-        selectedItemColor: AppColors.secondary,
-        unselectedItemColor: AppColors.textSecondary,
+        backgroundColor: AppColors.darkPrimary,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withOpacity(0.6),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
     );
   }
   
-  // Renamed to darkTheme for clarity, but we'll still use it as the main theme
-  static ThemeData get darkTheme => lightTheme;
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.light(
+        primary: AppColors.lightPrimary,
+        secondary: AppColors.lightSecondary,
+        surface: AppColors.lightSurface,
+        background: AppColors.lightBackground,
+        error: AppColors.error,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: AppColors.lightTextPrimary,
+        onBackground: AppColors.lightTextPrimary,
+        onError: Colors.white,
+      ),
+      
+      scaffoldBackgroundColor: AppColors.lightBackground,
+      
+      // Text Theme - Updated to use teal colors for headings
+      textTheme: TextTheme(
+        displayLarge: AppTextStyles.lightH1,
+        displayMedium: AppTextStyles.lightH2,
+        displaySmall: AppTextStyles.lightH3,
+        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: AppColors.lightTextSecondary),
+        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
+        bodySmall: AppTextStyles.bodySmall.copyWith(color: AppColors.lightTextSecondary),
+        labelLarge: AppTextStyles.buttonLarge.copyWith(color: AppColors.lightTextPrimary),
+        labelMedium: AppTextStyles.buttonMedium.copyWith(color: AppColors.lightTextPrimary),
+      ),
+
+      // App Bar Theme - Updated to use teal colors
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.lightPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 16,
+        titleTextStyle: AppTextStyles.lightH2.copyWith(color: Colors.white),
+      ),
+
+      // Card Theme
+      cardTheme: CardThemeData(
+        color: AppColors.lightCardBackground,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+
+      // Input Theme - Updated to use teal colors
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.lightSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.lightBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.lightSecondary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        labelStyle: AppTextStyles.inputLabel.copyWith(color: AppColors.lightTextSecondary),
+        hintStyle: AppTextStyles.inputHint.copyWith(color: AppColors.lightTextHint),
+      ),
+      
+      // Text selection and cursor color - Updated to use teal
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: AppColors.lightCursor,
+        selectionColor: AppColors.lightCursor.withOpacity(0.3),
+        selectionHandleColor: AppColors.lightCursor,
+      ),
+
+      // Button Theme - Updated to use teal colors
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.lightActionButton,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: AppTextStyles.buttonLarge,
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.lightSecondary,
+          side: BorderSide(color: AppColors.lightSecondary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: AppTextStyles.buttonLarge,
+        ),
+      ),
+
+      // Divider Theme
+      dividerTheme: DividerThemeData(
+        color: AppColors.lightDivider,
+        thickness: 1,
+        space: 1,
+      ),
+      
+      // Icon Theme
+      iconTheme: IconThemeData(
+        color: AppColors.lightPrimary,
+      ),
+      
+      // Floating Action Button Theme
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: AppColors.lightActionButton,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      
+      // Bottom Navigation Bar Theme
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: AppColors.lightPrimary,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withOpacity(0.7),
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+    );
+  }
 } 

@@ -1,32 +1,44 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:async/async.dart';
 import '../../models/medication.dart';
 import '../../services/firebase_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_decorations.dart';
-import 'add_medication_type_screen.dart';
-import 'medication_detail_screen.dart';
+import '../base_service_screen.dart';
+import 'add_medication/add_medication_type_screen.dart';
+import 'details/medication_detail_screen.dart';
 
-class MedicationListScreen extends StatefulWidget {
+class MedicationListScreen extends BaseServiceScreen {
+  // Add a route name for navigation
+  static const routeName = '/medication_list';
+  
   const MedicationListScreen({super.key});
 
   @override
   State<MedicationListScreen> createState() => _MedicationListScreenState();
 }
 
-class _MedicationListScreenState extends State<MedicationListScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
+class _MedicationListScreenState extends BaseServiceScreenState<MedicationListScreen> {
   bool _isLoading = true;
   String? _errorMessage;
+  StreamController<void> _refreshController = StreamController<void>.broadcast();
 
   @override
   void initState() {
     super.initState();
     _initializeFirebase();
   }
+  
+  @override
+  void dispose() {
+    _refreshController.close();
+    super.dispose();
+  }
 
   Future<void> _initializeFirebase() async {
     try {
-      await _firebaseService.initialize();
+      await firebaseService.initialize();
       setState(() {
         _isLoading = false;
       });
@@ -46,7 +58,7 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
 
     if (result == true) {
       // If a medication was added, refresh the list
-      setState(() {});
+      _refreshController.add(null);
     }
   }
 
@@ -60,7 +72,7 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
 
     // If a medication was deleted or updated, refresh the list
     if (result == true) {
-      setState(() {});
+      _refreshController.add(null);
     }
   }
 
@@ -78,19 +90,56 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
         color = Colors.orange;
         break;
       case MedicationType.injection:
-        // Check if it's a pre-filled syringe or vial
-        if (medication.isPreFilled == true) {
-          icon = Icons.vaccines;
-          color = Colors.green;
+        // Use the new injectionType enum if available
+        if (medication.injectionType != null) {
+          switch (medication.injectionType!) {
+            case InjectionType.liquidVial:
+              icon = Icons.water_drop;
+              color = Colors.blue;
+              break;
+            case InjectionType.powderVial:
+              icon = Icons.science;
+              color = Colors.purple;
+              break;
+            case InjectionType.prefilledSyringe:
+              icon = Icons.vaccines;
+              color = Colors.teal;
+              break;
+            case InjectionType.prefilledPen:
+              icon = Icons.edit;
+              color = Colors.green;
+              break;
+            case InjectionType.cartridge:
+              icon = Icons.battery_std;
+              color = Colors.amber;
+              break;
+            case InjectionType.ampule:
+              icon = Icons.water_drop;
+              color = Colors.cyan;
+              break;
+          }
+        } 
+        // Fallback to legacy fields if injectionType is not available
+        else if (medication.isPreFilled == true) {
+          if (medication.isPrefillPen == true) {
+            icon = Icons.edit;  // Pen icon
+            color = Colors.green;
+          } else {
+            icon = Icons.vaccines;  // Syringe icon
+            color = Colors.teal;
+          }
         } else if (medication.needsReconstitution == true) {
-          icon = Icons.science;
-          color = Colors.teal;
-        } else {
-          icon = Icons.water_drop;
+          icon = Icons.science;  // Lab/reconstitution icon
           color = Colors.purple;
+        } else {
+          icon = Icons.water_drop;  // Vial icon
+          color = Colors.indigo;
         }
         break;
     }
+
+    // Get medication type display text
+    String typeText = _getMedicationTypeText(medication);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -128,11 +177,19 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${medication.strength} ${medication.strengthUnit}',
+                      '${medication.strength} ${medication.strengthUnit} · $typeText',
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                       ),
                     ),
+                    if (medication.routeOfAdministration != null)
+                      Text(
+                        medication.routeOfAdministration!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -140,7 +197,7 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${medication.currentInventory}',
+                    '${medication.currentInventory.toInt()}',  // Remove decimal places
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -161,15 +218,55 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
       ),
     );
   }
+  
+  // Helper method to get medication type display text
+  String _getMedicationTypeText(Medication medication) {
+    switch (medication.type) {
+      case MedicationType.tablet:
+        return 'Tablet';
+      case MedicationType.capsule:
+        return 'Capsule';
+      case MedicationType.injection:
+        // Use the new injectionType enum if available
+        if (medication.injectionType != null) {
+          switch (medication.injectionType!) {
+            case InjectionType.liquidVial:
+              return 'Solution Vial';
+            case InjectionType.powderVial:
+              return 'Powdered Vial';
+            case InjectionType.prefilledSyringe:
+              return 'Prefilled Syringe';
+            case InjectionType.prefilledPen:
+              return 'Prefilled Pen';
+            case InjectionType.cartridge:
+              return 'Cartridge';
+            case InjectionType.ampule:
+              return 'Ampule';
+          }
+        } 
+        // Fallback to legacy fields if injectionType is not available
+        else if (medication.isPreFilled == true) {
+          if (medication.isPrefillPen == true) {
+            return 'Prefilled Pen';
+          } else {
+            return 'Prefilled Syringe';
+          }
+        } else if (medication.needsReconstitution == true) {
+          return 'Reconstitution Vial';
+        } else {
+          return 'Vial';
+        }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Use ScaffoldMessengerState to control snackbars
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Medications'),
-      ),
       body: Container(
-        decoration: AppDecorations.gradientBackground,
+        decoration: AppDecorations.screenBackground(context),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
@@ -197,7 +294,12 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                     ),
                   )
                 : StreamBuilder<List<Medication>>(
-                    stream: _firebaseService.getMedications(),
+                    // Use a stream combiner to force refresh when needed
+                    stream: StreamGroup.merge([
+                      firebaseService.getMedications(),
+                      // This stream will emit a value whenever we want to refresh
+                      _refreshController.stream.asyncMap((_) => firebaseService.getMedications().first),
+                    ]),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -246,7 +348,9 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                                 'No medications added yet',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.white,
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -260,17 +364,23 @@ class _MedicationListScreenState extends State<MedicationListScreen> {
                         );
                       }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: medications.length,
-                        itemBuilder: (context, index) {
-                          return _buildMedicationCard(medications[index]);
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          _refreshController.add(null);
                         },
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 80, left: 16, right: 16, top: 16),
+                          itemCount: medications.length,
+                          itemBuilder: (context, index) {
+                            return _buildMedicationCard(medications[index]);
+                          },
+                        ),
                       );
                     },
                   ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'addMedicationFab',
         onPressed: _navigateToAddMedication,
         child: const Icon(Icons.add),
       ),

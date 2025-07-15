@@ -49,6 +49,7 @@ dependencies:
   
   # State Management
   provider: ^6.1.2
+  get_it: ^7.6.7
   
   # UI Components
   flutter_form_builder: ^10.1.0
@@ -59,6 +60,7 @@ dependencies:
   uuid: ^4.3.3
   intl: ^0.20.2
   shared_preferences: ^2.2.2
+  async: ^2.13.0
 
 dev_dependencies:
   flutter_test:

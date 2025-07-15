@@ -1,0 +1,1143 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../models/reconstitution_calculator.dart';
+import '../../widgets/syringe_visualization.dart';
+
+class ReconstitutionCalculatorScreenV2 extends StatefulWidget {
+  final double? initialVialStrength;
+  final String? initialVialStrengthUnit;
+  final double? initialVialSize;
+
+  const ReconstitutionCalculatorScreenV2({
+    super.key,
+    this.initialVialStrength,
+    this.initialVialStrengthUnit,
+    this.initialVialSize,
+  });
+
+  @override
+  State<ReconstitutionCalculatorScreenV2> createState() => _ReconstitutionCalculatorScreenV2State();
+}
+
+class _ReconstitutionCalculatorScreenV2State extends State<ReconstitutionCalculatorScreenV2> {
+  final _formKey = GlobalKey<FormState>();
+  
+  late final TextEditingController _targetDoseController;
+  late final TextEditingController _vialStrengthController;
+  late final TextEditingController _reconVolumeController;
+  late final TextEditingController _reconFluidController;
+  late final TextEditingController _vialSizeController;
+  
+  String _targetDoseUnit = 'mcg';
+  String _vialStrengthUnit = 'mg';
+  double _syringeSize = 1.0;
+  bool _useVialSizeConstraint = false;
+  ReconstitutionOption _selectedOption = ReconstitutionOption.average;
+  
+  // Calculated volumes for each option
+  double _concentratedVolume = 0.0;
+  double _averageVolume = 0.0;
+  double _dilutedVolume = 0.0;
+  
+  // Calculated syringe units
+  double _concentratedUnits = 0.0;
+  double _averageUnits = 0.0;
+  double _dilutedUnits = 0.0;
+  
+  bool _isInitialized = false;
+  bool _hasCalculated = false;
+
+  // Original initState method removed as it's now combined with the new one above
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _isInitialized = true;
+      // We no longer auto-calculate on init - user must press Calculate button
+    }
+  }
+
+  // Original dispose method removed as it's now combined with the new one above
+
+  // Convert units if needed
+  double _normalizeUnits(double value, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return value;
+    
+    // Convert to base unit (mg)
+    double baseValue;
+    if (fromUnit == 'mcg') {
+      baseValue = value / 1000; // mcg to mg
+    } else if (fromUnit == 'mg') {
+      baseValue = value;
+    } else if (fromUnit == 'IU') {
+      // This is an approximation - IU conversion depends on the specific medication
+      baseValue = value / 100; // Assuming 100 IU = 1 mg for this example
+    } else {
+      baseValue = value; // Unknown unit, use as is
+    }
+    
+    // Convert from base unit to target unit
+    if (toUnit == 'mcg') {
+      return baseValue * 1000; // mg to mcg
+    } else if (toUnit == 'mg') {
+      return baseValue;
+    } else if (toUnit == 'IU') {
+      return baseValue * 100; // mg to IU
+    } else {
+      return baseValue; // Unknown unit, use as is
+    }
+  }
+
+  // Calculate syringe units (0-100 scale)
+  double _calculateSyringeUnits(double fillPercentage) {
+    // Convert percentage to IU (assuming 100 IU = 100% fill)
+    return fillPercentage;
+  }
+  
+  // Calculate IU for display based on selected option
+  double _calculateIUForDisplay() {
+    try {
+      switch (_selectedOption) {
+        case ReconstitutionOption.concentrated:
+          return _concentratedUnits;
+        case ReconstitutionOption.average:
+          return _averageUnits;
+        case ReconstitutionOption.diluted:
+          return _dilutedUnits;
+        default:
+          return 0;
+      }
+    } catch (e) {
+      return 0;
+    }
+  }
+  
+  // Calculate volume based on formula V = (f × S × M) / D
+  // Where:
+  // - f = fraction (target fill percentage)
+  // - S = syringe size (mL)
+  // - M = vial strength (mg, mcg, etc.)
+  // - D = target dose (same unit as M)
+  double _calculateVolume(double targetFillPercentage, double vialStrength, double targetDose) {
+    // Calculate how much medication is in each mL of reconstituted solution
+    // to achieve the desired syringe fill percentage
+    double reconVolume = (targetFillPercentage * _syringeSize * vialStrength) / targetDose;
+    
+    // Round to nearest 0.1 mL
+    return _roundToNearestTenth(reconVolume);
+  }
+  
+  void _calculate() {
+    if (_formKey.currentState == null || !_formKey.currentState!.validate()) return;
+
+    // Get input values
+    final double targetDose = double.parse(_targetDoseController.text);
+    final double vialStrength = double.parse(_vialStrengthController.text);
+    final double vialSize = double.parse(_vialSizeController.text);
+    
+    // Normalize units (convert target dose to same unit as vial strength)
+    final double normalizedTargetDose = _normalizeUnits(
+      targetDose, 
+      _targetDoseUnit, 
+      _vialStrengthUnit
+    );
+    
+    // Calculate volumes for each option based on target syringe fill percentages
+    // Concentrated: 10% syringe fill
+    // Average: 50% syringe fill
+    // Diluted: 82.5% syringe fill
+    _concentratedVolume = _calculateVolume(0.1, vialStrength, normalizedTargetDose);
+    _averageVolume = _calculateVolume(0.5, vialStrength, normalizedTargetDose);
+    _dilutedVolume = _calculateVolume(0.825, vialStrength, normalizedTargetDose);
+    
+    // Apply vial size constraint if enabled, but show a warning if values are clamped
+    if (_useVialSizeConstraint) {
+      // Check if any values would be clamped
+      bool concentratedClamped = _concentratedVolume > vialSize;
+      bool averageClamped = _averageVolume > vialSize;
+      bool dilutedClamped = _dilutedVolume > vialSize;
+      
+      // Apply clamping
+      _concentratedVolume = _concentratedVolume.clamp(0.1, vialSize);
+      _averageVolume = _averageVolume.clamp(0.1, vialSize);
+      _dilutedVolume = _dilutedVolume.clamp(0.1, vialSize);
+      
+      // Show warning if any values were clamped
+      if (concentratedClamped || averageClamped || dilutedClamped) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Some reconstitution volumes were limited by vial size constraint. '
+                'Consider using a larger vial or adjusting your parameters.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.orange[800],
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        });
+      }
+    }
+    
+    // Calculate actual syringe units (IU)
+    _concentratedUnits = _calculateSyringeUnits(10.0); // 10% of syringe
+    _averageUnits = _calculateSyringeUnits(50.0);      // 50% of syringe
+    _dilutedUnits = _calculateSyringeUnits(82.5);      // 82.5% of syringe
+    
+    // Update reconstitution volume based on selected option
+    setState(() {
+      _hasCalculated = true;
+      switch (_selectedOption) {
+        case ReconstitutionOption.concentrated:
+          _reconVolumeController.text = _concentratedVolume.toStringAsFixed(1);
+          break;
+        case ReconstitutionOption.average:
+          _reconVolumeController.text = _averageVolume.toStringAsFixed(1);
+          break;
+        case ReconstitutionOption.diluted:
+          _reconVolumeController.text = _dilutedVolume.toStringAsFixed(1);
+          break;
+      }
+    });
+  }
+  
+  // Round to nearest 0.1
+  double _roundToNearestTenth(double value) {
+    return (value * 10).round() / 10;
+  }
+
+  void _saveAndReturn() {
+    Navigator.pop(context, {
+      'volume': double.parse(_reconVolumeController.text),
+      'unit': 'mL',
+      'reconFluid': _reconFluidController.text,
+    });
+  }
+
+  void _showInfoDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, String infoText) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        if (infoText.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.info_outline, size: 16, color: Colors.white70),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _showInfoDialog(title, infoText),
+          ),
+      ],
+    );
+  }
+
+  // Build a form field row with label and input
+  Widget _buildFormRow({
+    required String label,
+    String infoText = '',
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 24,
+          child: _buildSectionHeader(label, infoText),
+        ),
+        const SizedBox(height: 4),
+        child,
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // Build a text input with consistent styling
+  Widget _buildTextInput({
+    required TextEditingController controller,
+    String? hintText,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: hintText,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        style: const TextStyle(color: Colors.black87),
+      ),
+    );
+  }
+
+  // Build a number input with increment/decrement buttons
+  Widget _buildNumberInput({
+    required TextEditingController controller,
+    required double incrementValue,
+    double minValue = 0.0,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+        ],
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                onTap: () {
+                  final currentValue = double.tryParse(controller.text) ?? 0;
+                  controller.text = (currentValue + incrementValue).toStringAsFixed(
+                    incrementValue < 1 ? 1 : 0
+                  );
+                },
+                child: const Icon(Icons.arrow_drop_up, size: 24),
+              ),
+              InkWell(
+                onTap: () {
+                  final currentValue = double.tryParse(controller.text) ?? 0;
+                  if (currentValue > minValue + incrementValue) {
+                    controller.text = (currentValue - incrementValue).toStringAsFixed(
+                      incrementValue < 1 ? 1 : 0
+                    );
+                  }
+                },
+                child: const Icon(Icons.arrow_drop_down, size: 24),
+              ),
+            ],
+          ),
+        ),
+        style: const TextStyle(color: Colors.black87),
+      ),
+    );
+  }
+
+  // Build a dropdown with consistent styling
+  Widget _buildDropdown<T>({
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: DropdownButtonFormField<T>(
+        value: value,
+        items: items,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        style: const TextStyle(color: Colors.black87),
+        dropdownColor: Colors.white,
+        icon: const Icon(Icons.arrow_drop_down),
+        isExpanded: true,
+      ),
+    );
+  }
+
+  // Vial Size Constraint
+  Widget _buildVialSizeConstraint() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: _useVialSizeConstraint,
+              onChanged: (value) {
+                setState(() {
+                  _useVialSizeConstraint = value ?? false;
+                });
+              },
+              fillColor: MaterialStateProperty.resolveWith<Color>(
+                (Set<MaterialState> states) {
+                  if (states.contains(MaterialState.selected)) {
+                    return Colors.blue;
+                  }
+                  return Colors.white;
+                },
+              ),
+            ),
+            const Text(
+              'Limit to vial size',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        if (_useVialSizeConstraint)
+          Padding(
+            padding: const EdgeInsets.only(left: 32.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildNumberInput(
+                    controller: _vialSizeController,
+                    incrementValue: 1.0,
+                    minValue: 0.1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'mL',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Build option card
+  Widget _buildOptionCard(
+    ReconstitutionOption option,
+    String title,
+    String description,
+    double volume,
+    double fillPercentage,
+  ) {
+    bool isSelected = _selectedOption == option;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedOption = option;
+          _reconVolumeController.text = volume.toStringAsFixed(1);
+          // Force rebuild of syringe visualization
+          _hasCalculated = true;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? Colors.blue.withOpacity(0.3) 
+              : Colors.blueGrey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? Colors.blue : Colors.white24,
+                  border: Border.all(
+                    color: isSelected ? Colors.blue : Colors.white54,
+                    width: 2,
+                  ),
+                ),
+                child: isSelected 
+                    ? const Icon(Icons.check, color: Colors.white, size: 16)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Volume: ${volume.toStringAsFixed(1)} mL (${fillPercentage.toStringAsFixed(1)}% fill, ${fillPercentage.toStringAsFixed(0)} IU)',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Controller for handling scroll position
+  final ScrollController _scrollController = ScrollController();
+  // Key for the result card section
+  final GlobalKey _resultCardKey = GlobalKey();
+  // Whether the result card should be shown as floating
+  bool _showFloatingCard = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _targetDoseController = TextEditingController(text: '500');
+    _vialStrengthController = TextEditingController(
+      text: widget.initialVialStrength?.toString() ?? '10'
+    );
+    _reconVolumeController = TextEditingController(text: '0.0');
+    _reconFluidController = TextEditingController(text: 'Bacteriostatic Water');
+    _vialSizeController = TextEditingController(
+      text: widget.initialVialSize?.toString() ?? '5.0'
+    );
+    
+    if (widget.initialVialStrengthUnit != null) {
+      _vialStrengthUnit = widget.initialVialStrengthUnit!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _targetDoseController.dispose();
+    _vialStrengthController.dispose();
+    _reconVolumeController.dispose();
+    _reconFluidController.dispose();
+    _vialSizeController.dispose();
+    super.dispose();
+  }
+
+  // Update floating card visibility based on scroll position
+  void _updateFloatingCardVisibility() {
+    if (!_hasCalculated) return;
+    
+    try {
+      final RenderObject? renderObject = _resultCardKey.currentContext?.findRenderObject();
+      if (renderObject is RenderBox) {
+        final position = renderObject.localToGlobal(Offset.zero);
+        final shouldShow = position.dy < 100; // Show when the card is near the top
+        
+        if (shouldShow != _showFloatingCard) {
+          setState(() {
+            _showFloatingCard = shouldShow;
+          });
+        }
+      }
+    } catch (e) {
+      // Silently handle any errors that might occur during scroll
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reconstitution Calculator'),
+        backgroundColor: const Color(0xFF1E2B3D),
+      ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF1E2B3D),
+                  Color(0xFF121A29),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Reconstitution fluid
+                      _buildFormRow(
+                        label: 'Reconstitution Fluid',
+                        infoText: 'Enter the name of the fluid used to reconstitute the medication (e.g., Sterile Water, 0.9% Saline).',
+                        child: _buildTextInput(
+                          controller: _reconFluidController,
+                          hintText: 'e.g., Sterile Water, 0.9% Saline',
+                        ),
+                      ),
+
+                      // Target dose and unit
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 24, // Fixed height for header area
+                                  child: _buildSectionHeader('Target Dose', 
+                                      'Enter the dose you plan to administer per injection (in the same unit as the vial amount).'),
+                                ),
+                                const SizedBox(height: 4),
+                                _buildNumberInput(
+                                  controller: _targetDoseController,
+                                  incrementValue: 1.0,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 24, // Fixed height for header area
+                                  child: _buildSectionHeader('Target Dose Unit', ''),
+                                ),
+                                const SizedBox(height: 4),
+                                _buildDropdown<String>(
+                                  value: _targetDoseUnit,
+                                  items: const [
+                                    DropdownMenuItem(value: 'mcg', child: Text('mcg')),
+                                    DropdownMenuItem(value: 'mg', child: Text('mg')),
+                                    DropdownMenuItem(value: 'IU', child: Text('IU')),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _targetDoseUnit = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Vial strength and unit
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 24, // Fixed height for header area
+                                  child: _buildSectionHeader('Vial Strength', 
+                                      'Enter the total strength of the medication in the vial before reconstitution.'),
+                                ),
+                                const SizedBox(height: 4),
+                                _buildNumberInput(
+                                  controller: _vialStrengthController,
+                                  incrementValue: 1.0,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 24, // Fixed height for header area
+                                  child: _buildSectionHeader('Vial Strength Unit', ''),
+                                ),
+                                const SizedBox(height: 4),
+                                _buildDropdown<String>(
+                                  value: _vialStrengthUnit,
+                                  items: const [
+                                    DropdownMenuItem(value: 'mcg', child: Text('mcg')),
+                                    DropdownMenuItem(value: 'mg', child: Text('mg')),
+                                    DropdownMenuItem(value: 'IU', child: Text('IU')),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _vialStrengthUnit = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Syringe size
+                      _buildFormRow(
+                        label: 'Syringe Size',
+                        infoText: 'Select the size of the syringe you\'ll use for injections',
+                        child: _buildDropdown<double>(
+                          value: _syringeSize,
+                          items: const [
+                            DropdownMenuItem(value: 0.3, child: Text('0.3 mL')),
+                            DropdownMenuItem(value: 0.5, child: Text('0.5 mL')),
+                            DropdownMenuItem(value: 1.0, child: Text('1.0 mL')),
+                            DropdownMenuItem(value: 3.0, child: Text('3.0 mL')),
+                            DropdownMenuItem(value: 5.0, child: Text('5.0 mL')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _syringeSize = value;
+                                // Recalculate if we already have results
+                                if (_hasCalculated) {
+                                  _calculate();
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ),
+
+                      // Vial Size Constraint
+                      _buildVialSizeConstraint(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Calculate button
+                      ElevatedButton.icon(
+                        onPressed: _calculate,
+                        icon: const Icon(Icons.calculate),
+                        label: const Text('Calculate'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // In-place result card (non-floating) - shown right after calculate button
+                      if (_hasCalculated && !_showFloatingCard)
+                        Container(
+                          // Using a unique key for this container
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Reconstitute with',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _reconVolumeController.text,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'mL',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '(${_calculateIUForDisplay().toStringAsFixed(0)} IU)',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'of ${_reconFluidController.text}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      
+                      // Instructions card when no calculation has been performed
+                      if (!_hasCalculated)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                color: Colors.white70,
+                                size: 32,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'How to use this calculator',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                '1. Enter your target dose and vial strength\n'
+                                '2. Select your syringe size\n'
+                                '3. Press the Calculate button\n'
+                                '4. Choose a reconstitution option\n'
+                                '5. Fine-tune if needed and save',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                      
+                      // Only show the rest if calculated
+                      if (_hasCalculated) ...[
+                        const SizedBox(height: 24),
+                        // Reconstitution options
+                        const Text(
+                          'Reconstitution Options',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const Text(
+                          'Choose from three reconstitution options based on syringe fill level',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Option cards
+                        _buildOptionCard(
+                          ReconstitutionOption.concentrated,
+                          'Concentrated',
+                          'Low volume, high concentration (10% syringe fill)',
+                          _concentratedVolume,
+                          10.0,
+                        ),
+                        
+                        _buildOptionCard(
+                          ReconstitutionOption.average,
+                          'Average',
+                          'Medium volume, medium concentration (50% syringe fill)',
+                          _averageVolume,
+                          50.0,
+                        ),
+                        
+                        _buildOptionCard(
+                          ReconstitutionOption.diluted,
+                          'Diluted',
+                          'High volume, low concentration (82.5% syringe fill)',
+                          _dilutedVolume,
+                          82.5,
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Syringe visualization
+                        SyringeVisualization(
+                          syringeSize: _syringeSize,
+                          targetVolume: double.parse(_reconVolumeController.text),
+                          fillColor: _selectedOption == ReconstitutionOption.concentrated 
+                              ? Colors.green
+                              : _selectedOption == ReconstitutionOption.average
+                                  ? Colors.blue
+                                  : Colors.purple,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Empty container for scroll position tracking
+                        Container(
+                          key: _resultCardKey, // This is the anchor for scroll detection
+                          height: 1,
+                          width: double.infinity,
+                        ),
+                        
+                        // Fine tune reconstitution volume
+                        const Text(
+                          'Fine-tune Reconstitution Volume',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const Text(
+                          'You can adjust the reconstitution volume manually if needed',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Recon volume adjustment
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: TextFormField(
+                                controller: _reconVolumeController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                                ],
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  suffixIcon: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      InkWell(
+                                        onTap: () {
+                                          try {
+                                            final currentValue = double.tryParse(_reconVolumeController.text) ?? 0;
+                                            final newValue = (currentValue + 0.1).toStringAsFixed(1);
+                                            _reconVolumeController.text = newValue;
+                                            setState(() {}); // Force rebuild to update IU display
+                                          } catch (e) {
+                                            // Handle any parsing errors
+                                            _reconVolumeController.text = "0.1";
+                                            setState(() {});
+                                          }
+                                        },
+                                        child: const Icon(Icons.arrow_drop_up, size: 24),
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          try {
+                                            final currentValue = double.tryParse(_reconVolumeController.text) ?? 0;
+                                            if (currentValue > 0.1) {
+                                              final newValue = (currentValue - 0.1).toStringAsFixed(1);
+                                              _reconVolumeController.text = newValue;
+                                              setState(() {}); // Force rebuild to update IU display
+                                            }
+                                          } catch (e) {
+                                            // Handle any parsing errors
+                                            _reconVolumeController.text = "0.1";
+                                            setState(() {});
+                                          }
+                                        },
+                                        child: const Icon(Icons.arrow_drop_down, size: 24),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                style: const TextStyle(color: Colors.black87),
+                                onChanged: (value) {
+                                  // Validate the input is a valid number
+                                  if (value.isEmpty) {
+                                    _reconVolumeController.text = "0.1";
+                                  } else {
+                                    try {
+                                      double.parse(value);
+                                    } catch (e) {
+                                      _reconVolumeController.text = "0.1";
+                                    }
+                                  }
+                                  setState(() {}); // Update IU when text changes
+                                }
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 1,
+                              child: _buildDropdown<String>(
+                                value: 'mL',
+                                items: const [
+                                  DropdownMenuItem(value: 'mL', child: Text('mL')),
+                                ],
+                                onChanged: (_) {},
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Save button
+                        ElevatedButton(
+                          onPressed: _saveAndReturn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Save Reconstitution Volume'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Sticky reconstitution amount card - only shows when scrolled past the anchor point
+          if (_hasCalculated && _showFloatingCard)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              left: 16,
+              right: 16,
+              top: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Reconstitute with',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _reconVolumeController.text,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'mL',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '(${_calculateIUForDisplay().toStringAsFixed(0)} IU)',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'of ${_reconFluidController.text}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+} 

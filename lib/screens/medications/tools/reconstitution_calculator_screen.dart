@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../models/reconstitution_calculator.dart';
-import '../../widgets/syringe_visualization.dart';
+import '../../../models/reconstitution_calculator.dart';
+import '../../../widgets/syringe_visualization.dart';
+import '../../../widgets/input_field_row.dart';
+import '../../../widgets/help_card.dart';
 
 class ReconstitutionCalculatorScreen extends StatefulWidget {
   final double? initialVialStrength;
@@ -530,6 +532,7 @@ class _ReconstitutionCalculatorScreenState extends State<ReconstitutionCalculato
   @override
   void initState() {
     super.initState();
+    
     _targetDoseController = TextEditingController(text: '500');
     _vialStrengthController = TextEditingController(
       text: widget.initialVialStrength?.toString() ?? '10'
@@ -543,15 +546,37 @@ class _ReconstitutionCalculatorScreenState extends State<ReconstitutionCalculato
     if (widget.initialVialStrengthUnit != null) {
       _vialStrengthUnit = widget.initialVialStrengthUnit!;
     }
-
-    // Add scroll listener
-    _scrollController.addListener(_updateFloatingCardVisibility);
+    
+    // Add listeners to controllers to update the UI when values change
+    _reconVolumeController.addListener(() {
+      setState(() {
+        // This will trigger a UI update when the reconstitution volume changes
+      });
+    });
+    
+    _targetDoseController.addListener(() {
+      setState(() {
+        // This will trigger a UI update when the target dose changes
+      });
+    });
+    
+    _vialStrengthController.addListener(() {
+      setState(() {
+        // This will trigger a UI update when the vial strength changes
+      });
+    });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_updateFloatingCardVisibility);
     _scrollController.dispose();
+    
+    // Remove listeners before disposing controllers
+    _targetDoseController.removeListener(() {});
+    _vialStrengthController.removeListener(() {});
+    _reconVolumeController.removeListener(() {});
+    
     _targetDoseController.dispose();
     _vialStrengthController.dispose();
     _reconVolumeController.dispose();
@@ -621,109 +646,37 @@ class _ReconstitutionCalculatorScreenState extends State<ReconstitutionCalculato
                       ),
 
                       // Target dose and unit
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 24, // Fixed height for header area
-                                  child: _buildSectionHeader('Target Dose', 
-                                      'Enter the dose you plan to administer per injection (in the same unit as the vial amount).'),
-                                ),
-                                const SizedBox(height: 4),
-                                _buildNumberInput(
-                                  controller: _targetDoseController,
-                                  incrementValue: 1.0,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 24, // Fixed height for header area
-                                  child: _buildSectionHeader('Target Dose Unit', ''),
-                                ),
-                                const SizedBox(height: 4),
-                                _buildDropdown<String>(
-                                  value: _targetDoseUnit,
-                                  items: const [
-                                    DropdownMenuItem(value: 'mcg', child: Text('mcg')),
-                                    DropdownMenuItem(value: 'mg', child: Text('mg')),
-                                    DropdownMenuItem(value: 'IU', child: Text('IU')),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _targetDoseUnit = value;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      InputFieldRow(
+                        label: 'Target Dose',
+                        infoText: 'Enter the dose you plan to administer per injection (in the same unit as the vial amount).',
+                        controller: _targetDoseController,
+                        unitValue: _targetDoseUnit,
+                        unitOptions: const ['mcg', 'mg', 'IU'],
+                        onUnitChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _targetDoseUnit = value;
+                            });
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 16),
 
                       // Vial strength and unit
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 24, // Fixed height for header area
-                                  child: _buildSectionHeader('Vial Strength', 
-                                      'Enter the total strength of the medication in the vial before reconstitution.'),
-                                ),
-                                const SizedBox(height: 4),
-                                _buildNumberInput(
-                                  controller: _vialStrengthController,
-                                  incrementValue: 1.0,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 24, // Fixed height for header area
-                                  child: _buildSectionHeader('Vial Strength Unit', ''),
-                                ),
-                                const SizedBox(height: 4),
-                                _buildDropdown<String>(
-                                  value: _vialStrengthUnit,
-                                  items: const [
-                                    DropdownMenuItem(value: 'mcg', child: Text('mcg')),
-                                    DropdownMenuItem(value: 'mg', child: Text('mg')),
-                                    DropdownMenuItem(value: 'IU', child: Text('IU')),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _vialStrengthUnit = value;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      InputFieldRow(
+                        label: 'Vial Strength',
+                        infoText: 'Enter the total strength of the medication in the vial before reconstitution.',
+                        controller: _vialStrengthController,
+                        unitValue: _vialStrengthUnit,
+                        unitOptions: const ['mcg', 'mg', 'IU'],
+                        onUnitChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _vialStrengthUnit = value;
+                            });
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 16),
@@ -841,38 +794,16 @@ class _ReconstitutionCalculatorScreenState extends State<ReconstitutionCalculato
                       
                       // Instructions card when no calculation has been performed
                       if (!_hasCalculated)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.blueGrey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.info_outline,
-                                color: Colors.white70,
-                                size: 32,
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'How to use this calculator',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                '1. Enter your target dose and vial strength\n'
-                                '2. Select your syringe size\n'
-                                '3. Press the Calculate button\n'
-                                '4. Choose a reconstitution option\n'
-                                '5. Fine-tune if needed and save',
-                                style: TextStyle(color: Colors.white70),
-                              ),
+                        CollapsibleHelpCard(
+                          title: 'About Reconstitution',
+                          content: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text('• Reconstitution is the process of adding a diluent to a powdered medication'),
+                              SizedBox(height: 8),
+                              Text('• This calculator helps you determine the correct volume of diluent to add'),
+                              SizedBox(height: 8),
+                              Text('• Enter the desired concentration to calculate the diluent volume'),
                             ],
                           ),
                         ),
@@ -957,92 +888,14 @@ class _ReconstitutionCalculatorScreenState extends State<ReconstitutionCalculato
                         const SizedBox(height: 12),
                         
                         // Recon volume adjustment
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: TextFormField(
-                                controller: _reconVolumeController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                                ],
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(4),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  suffixIcon: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          try {
-                                            final currentValue = double.tryParse(_reconVolumeController.text) ?? 0;
-                                            final newValue = (currentValue + 0.1).toStringAsFixed(1);
-                                            _reconVolumeController.text = newValue;
-                                            setState(() {}); // Force rebuild to update IU display
-                                          } catch (e) {
-                                            // Handle any parsing errors
-                                            _reconVolumeController.text = "0.1";
-                                            setState(() {});
-                                          }
-                                        },
-                                        child: const Icon(Icons.arrow_drop_up, size: 24),
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          try {
-                                            final currentValue = double.tryParse(_reconVolumeController.text) ?? 0;
-                                            if (currentValue > 0.1) {
-                                              final newValue = (currentValue - 0.1).toStringAsFixed(1);
-                                              _reconVolumeController.text = newValue;
-                                              setState(() {}); // Force rebuild to update IU display
-                                            }
-                                          } catch (e) {
-                                            // Handle any parsing errors
-                                            _reconVolumeController.text = "0.1";
-                                            setState(() {});
-                                          }
-                                        },
-                                        child: const Icon(Icons.arrow_drop_down, size: 24),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                style: const TextStyle(color: Colors.black87),
-                                onChanged: (value) {
-                                  // Validate the input is a valid number
-                                  if (value.isEmpty) {
-                                    _reconVolumeController.text = "0.1";
-                                  } else {
-                                    try {
-                                      double.parse(value);
-                                    } catch (e) {
-                                      _reconVolumeController.text = "0.1";
-                                    }
-                                  }
-                                  setState(() {}); // Update IU when text changes
-                                }
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: _buildDropdown<String>(
-                                value: 'mL',
-                                items: const [
-                                  DropdownMenuItem(value: 'mL', child: Text('mL')),
-                                ],
-                                onChanged: (_) {},
-                              ),
-                            ),
-                          ],
+                        InputFieldRow(
+                          label: 'Reconstitution Volume',
+                          controller: _reconVolumeController,
+                          unitValue: 'mL',
+                          unitOptions: const ['mL'],
+                          onUnitChanged: (_) {},
+                          incrementValue: 0.1,
+                          minValue: 0.1,
                         ),
                         const SizedBox(height: 24),
                         

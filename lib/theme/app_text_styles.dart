@@ -28,6 +28,30 @@ class AppTextStyles {
     color: AppColors.textPrimary,
   );
 
+  // Light theme heading styles with teal color
+  static TextStyle lightH1 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 32,
+    fontWeight: FontWeight.bold,
+    color: AppColors.lightTextPrimary,
+    letterSpacing: -0.5,
+  );
+
+  static TextStyle lightH2 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: AppColors.lightTextPrimary,
+    letterSpacing: -0.25,
+  );
+
+  static TextStyle lightH3 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    color: AppColors.lightTextPrimary,
+  );
+
   // Body Text
   static TextStyle bodyLarge = TextStyle(
     fontFamily: _fontFamily,
