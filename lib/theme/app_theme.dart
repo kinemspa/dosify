@@ -163,14 +163,14 @@ class AppTheme {
       
       scaffoldBackgroundColor: AppColors.lightBackground,
       
-      // Text Theme - Updated to use teal colors for headings
+      // Text Theme - Updated to use teal colors for headings and ensure input text is dark
       textTheme: TextTheme(
         displayLarge: AppTextStyles.lightH1,
         displayMedium: AppTextStyles.lightH2,
         displaySmall: AppTextStyles.lightH3,
-        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: AppColors.lightTextSecondary),
-        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: AppColors.lightTextSecondary),
-        bodySmall: AppTextStyles.bodySmall.copyWith(color: AppColors.lightTextSecondary),
+        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: Colors.black87),
+        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: Colors.black87),
+        bodySmall: AppTextStyles.bodySmall.copyWith(color: Colors.black54),
         labelLarge: AppTextStyles.buttonLarge.copyWith(color: AppColors.lightTextPrimary),
         labelMedium: AppTextStyles.buttonMedium.copyWith(color: AppColors.lightTextPrimary),
       ),
@@ -194,7 +194,7 @@ class AppTheme {
         ),
       ),
 
-      // Input Theme - Updated to use teal colors
+      // Input Theme - Updated to use teal colors and ensure text is visible
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.lightSurface,
@@ -215,8 +215,8 @@ class AppTheme {
           borderSide: const BorderSide(color: AppColors.error),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        labelStyle: AppTextStyles.inputLabel.copyWith(color: AppColors.lightTextSecondary),
-        hintStyle: AppTextStyles.inputHint.copyWith(color: AppColors.lightTextHint),
+        labelStyle: AppTextStyles.inputLabel.copyWith(color: Colors.black54),
+        hintStyle: AppTextStyles.inputHint.copyWith(color: Colors.black45),
       ),
       
       // Text selection and cursor color - Updated to use teal

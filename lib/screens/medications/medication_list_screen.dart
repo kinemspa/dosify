@@ -25,7 +25,7 @@ class MedicationListScreen extends BaseServiceScreen {
 class _MedicationListScreenState extends BaseServiceScreenState<MedicationListScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  StreamController<void> _refreshController = StreamController<void>.broadcast();
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -34,10 +34,6 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
   }
   
   @override
-  void dispose() {
-    _refreshController.close();
-    super.dispose();
-  }
 
   Future<void> _initializeFirebase() async {
     try {
@@ -60,8 +56,7 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
     );
 
     if (result == true) {
-      // If a medication was added, refresh the list
-      _refreshController.add(null);
+      setState(() => _refreshKey++);
     }
   }
 
@@ -73,9 +68,8 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
       ),
     );
 
-    // If a medication was deleted or updated, refresh the list
     if (result == true) {
-      _refreshController.add(null);
+      setState(() => _refreshKey++);
     }
   }
 
@@ -327,12 +321,8 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
                     ),
                   )
                 : StreamBuilder<List<Medication>>(
-                    // Use a stream combiner to force refresh when needed
-                    stream: StreamGroup.merge([
-                      firebaseService.getMedications(),
-                      // This stream will emit a value whenever we want to refresh
-                      _refreshController.stream.asyncMap((_) => firebaseService.getMedications().first),
-                    ]),
+                    key: ValueKey(_refreshKey),
+                    stream: firebaseService.getMedications(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -399,7 +389,7 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
 
                       return RefreshIndicator(
                         onRefresh: () async {
-                          _refreshController.add(null);
+                          setState(() => _refreshKey++);
                         },
                         child: ListView.builder(
                           padding: const EdgeInsets.only(bottom: 80, left: 16, right: 16, top: 16),
@@ -419,4 +409,4 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
       ),
     );
   }
-} 
+}
