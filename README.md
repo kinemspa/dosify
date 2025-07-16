@@ -338,3 +338,5 @@ The following updates have been applied to address the Code Improvement Plan:
 - **Encryption Implementation**: Added encryption and decryption methods for dose and schedule data in EncryptionService. Integrated these into DoseRepository and ScheduleRepository for secure data handling when adding, updating, and retrieving doses and schedules.
 
 These changes enhance the app's maintainability, performance, offline capabilities, and data security.
+
+- **Calendar Integration**: Added ScheduleCalendar widget for visual scheduling on medication details screen, with daily/weekly/monthly views and interactive editing capabilities.
