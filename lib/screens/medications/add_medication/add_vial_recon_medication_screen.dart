@@ -1,38 +1,24 @@
 import 'package:flutter/material.dart';
-import '../../models/medication.dart';
-import '../../theme/app_decorations.dart';
-import '../../services/firebase_service.dart';
-import '../../widgets/input_field_row.dart';
 import 'package:uuid/uuid.dart';
+
+import '../../../models/medication.dart';
+import '../../../theme/app_decorations.dart';
+import '../../../widgets/input_field_row.dart';
+import '../../../screens/base_service_screen.dart';
+
 import 'add_medication_form.dart';
 
-class AddVialReconMedicationScreen extends StatefulWidget {
+class AddVialReconMedicationScreen extends BaseServiceScreen {
   const AddVialReconMedicationScreen({super.key});
 
   @override
   State<AddVialReconMedicationScreen> createState() => _AddVialReconMedicationScreenState();
 }
 
-class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScreen> {
+class _AddVialReconMedicationScreenState extends BaseServiceScreenState<AddVialReconMedicationScreen> {
   final _reconVolumeController = TextEditingController();
   String _reconVolumeUnit = 'mL';
   final _concentrationController = TextEditingController();
-  final FirebaseService _firebaseService = FirebaseService();
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeServices();
-  }
-
-  Future<void> _initializeServices() async {
-    try {
-      await _firebaseService.initialize();
-    } catch (e) {
-      print('Error initializing services: $e');
-    }
-  }
 
   @override
   void dispose() {
@@ -43,64 +29,39 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
 
   Future<void> _handleSave(BuildContext context, Map<String, dynamic> data) async {
     if (_reconVolumeController.text.isEmpty || _concentrationController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all required fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showErrorDialog('Validation Error', 'Please fill all required fields');
       return;
     }
 
-    setState(() => _isLoading = true);
+    showLoadingDialog();
 
     try {
-      // Generate a unique ID using UUID
       final uuid = const Uuid().v4();
-      
+
       final medication = Medication(
         id: uuid,
         name: data['name'],
-        // Using injection type instead of vialPowderedRecon (planned for future expansion)
-        type: MedicationType.injection,
+        type: MedicationType.vialPowderedRecon,
         strength: data['strength'],
         strengthUnit: data['strengthUnit'],
-        quantity: data['quantity'],
+        tabletsInStock: data['quantity'],
         quantityUnit: data['quantityUnit'],
         currentInventory: data['currentInventory'],
         lastInventoryUpdate: DateTime.now(),
         reconstitutionVolume: double.parse(_reconVolumeController.text),
         reconstitutionVolumeUnit: _reconVolumeUnit,
         concentrationAfterReconstitution: double.parse(_concentrationController.text),
-        // Additional fields for injection type
-        needsReconstitution: true, // This is a reconstitution vial
+        needsReconstitution: true,
       );
 
-      // Save medication to Firebase
-      await _firebaseService.addMedication(medication);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Medication saved successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true); // Return true to indicate success
-      }
+      await medicationRepository.addMedication(medication);
+
+      hideDialog();
+      showSuccessDialog('Success', 'Medication saved successfully');
+      Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving medication: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      hideDialog();
+      showErrorDialog('Error', 'Error saving medication: $e');
     }
   }
 
@@ -155,11 +116,10 @@ class _AddVialReconMedicationScreenState extends State<AddVialReconMedicationScr
   @override
   Widget build(BuildContext context) {
     return AddMedicationForm(
-      // Using injection type instead of vialPowderedRecon (planned for future expansion)
-      medicationType: MedicationType.injection,
+      medicationType: MedicationType.vialPowderedRecon,
       title: 'Add Reconstitution Vial',
       additionalFields: _buildReconstitutionFields(),
       onSave: (data) => _handleSave(context, data),
     );
   }
-} 
+}

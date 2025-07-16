@@ -6,12 +6,7 @@ import 'package:flutter/foundation.dart';
 
 /// Service for handling data encryption and decryption using AES-256
 class EncryptionService {
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  final FlutterSecureStorage _storage;
   
   static const _keyTag = 'encryption_key';
   static const _ivTag = 'encryption_iv';
@@ -19,6 +14,15 @@ class EncryptionService {
   
   crypto.Encrypter? _encrypter;
   late crypto.IV _iv;
+
+  EncryptionService({
+    FlutterSecureStorage? storage,
+  }) : _storage = storage ?? const FlutterSecureStorage(
+    aOptions: AndroidOptions(),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
 
   /// Initialize encryption with secure key generation
   Future<void> initialize() async {

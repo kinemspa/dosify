@@ -445,6 +445,14 @@ class Medication {
     );
   }
 
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    print('Invalid date type: $value');
+    return null;
+  }
+
   /// Creates a Medication instance from Firestore data (Map format)
   /// Used by the refactored Firebase service
   static Medication fromFirestoreData(Map<String, dynamic> data) {
@@ -477,12 +485,8 @@ class Medication {
       tabletsInStock: data['tabletsInStock'] != null 
           ? (data['tabletsInStock'] as num).toDouble()
           : (data['currentInventory'] as num).toDouble(),
-      createdAt: data['createdAt'] is String 
-          ? DateTime.parse(data['createdAt'])
-          : (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] is String
-          ? DateTime.parse(data['updatedAt'])
-          : (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: _parseDate(data['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseDate(data['updatedAt']) ?? DateTime.now(),
       userId: data['userId'] as String,
       routeOfAdministration: data['routeOfAdministration'] as String?,
       isPreFilled: data['isPreFilled'] as bool?,
@@ -493,11 +497,7 @@ class Medication {
           ? (data['currentInventory'] as num).toDouble() 
           : (data['tabletsInStock'] as num?)?.toDouble() ?? 0.0,
       notes: data['notes'] as String?,
-      lastInventoryUpdate: data['lastInventoryUpdate'] != null
-          ? (data['lastInventoryUpdate'] is String
-              ? DateTime.parse(data['lastInventoryUpdate'])
-              : (data['lastInventoryUpdate'] as Timestamp).toDate())
-          : DateTime.now(),
+      lastInventoryUpdate: _parseDate(data['lastInventoryUpdate']) ?? DateTime.now(),
       reconstitutionVolume: data['reconstitutionVolume'] != null
           ? (data['reconstitutionVolume'] as num).toDouble()
           : null,
@@ -508,4 +508,4 @@ class Medication {
       diluent: data['diluent'] as String?,
     );
   }
-} 
+}
