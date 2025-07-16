@@ -322,3 +322,17 @@ Efficient memory usage through:
 2. **Resource Cleanup**: Proper disposal of resources when no longer needed
 3. **Stream Management**: Efficient handling of Firestore streams
 4. **Cache Eviction**: Automatic cleanup of expired cache entries
+
+## Recent Changes
+
+The following updates have been applied to address the Code Improvement Plan:
+
+- **Model Consolidation Completed**: Merged `MedicationSchedule` into `Schedule` model. Removed duplicate `DoseStatus` enum. Updated all references in screens, services, and widgets.
+- **Encryption Service Fixed**: Corrected imports, implemented missing `encrypt` and `decrypt` methods.
+- **Firebase Service Updates**: Resolved type conflicts in `getMedications()`, added missing `getDose` and `getMedication` methods, improved error handling.
+- **Added New Features**: Introduced offline sync service, pagination models, input validation utils, conflict resolution dialog, and additional tests.
+- **General Refactoring**: Improved dependency injection, added documentation, optimized performance with caching and query optimizations.
+- **File Changes**: Deleted `lib/models/medication_schedule.dart`, added new files like `lib/services/offline_sync_service.dart`, `lib/core/`, etc.
+- **Dependencies**: Updated `pubspec.yaml` and `pubspec.lock` for new packages.
+
+These changes enhance the app's maintainability, performance, and offline capabilities.

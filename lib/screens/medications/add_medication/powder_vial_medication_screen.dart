@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/medication.dart';
+import '../../../models/injection_type.dart';
 import '../../../widgets/help_card.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/medication_confirmation_dialog.dart';
@@ -157,17 +158,18 @@ class _PowderVialMedicationScreenState extends BaseInjectionMedicationScreenStat
   @override
   Medication createMedicationObject({
     required String uuid,
+    required String name,
     required double strength,
     required double quantity,
     required double inventory,
   }) {
     return Medication(
       id: uuid,
-      name: nameController.text,
+      name: name,
       type: MedicationType.injection,
       strength: strength,
       strengthUnit: strengthUnit,
-      quantity: quantity,
+      tabletsInStock: quantity,
       quantityUnit: quantityUnit,
       currentInventory: inventory,
       lastInventoryUpdate: DateTime.now(),
@@ -176,10 +178,10 @@ class _PowderVialMedicationScreenState extends BaseInjectionMedicationScreenStat
       isPreFilled: false,
       isPrefillPen: false,
       needsReconstitution: true,
+      routeOfAdministration: routeOfAdministration,
       reconstitutionVolume: double.tryParse(_reconVolumeController.text),
       reconstitutionVolumeUnit: 'mL',
       concentrationAfterReconstitution: _concentrationAfterReconstitution,
-      routeOfAdministration: routeOfAdministration,
       diluent: _diluentController.text.isNotEmpty ? _diluentController.text : null,
     );
   }

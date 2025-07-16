@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../models/medication.dart';
 import '../../../models/dose.dart';
 import '../../../services/firebase_service.dart';
+import '../../../services/service_locator.dart';
 import '../doses/add_dose_screen.dart';
 import '../schedules/view_schedules_screen.dart';
-import 'reconstitution_calculator_screen.dart';
+// import 'reconstitution_calculator_screen.dart'; // File missing, commented out
 
 class MedicationDetailsScreen extends StatefulWidget {
   final Medication medication;
@@ -20,7 +21,7 @@ class MedicationDetailsScreen extends StatefulWidget {
 
 class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   late Medication _medication;
-  final FirebaseService _firebaseService = FirebaseService();
+  late final FirebaseService _firebaseService;
   bool _isLoading = true;
   List<Dose> _doses = [];
 
@@ -28,6 +29,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   void initState() {
     super.initState();
     _medication = widget.medication;
+    _firebaseService = ServiceLocator.get<FirebaseService>();
     _loadDoses();
   }
 
@@ -37,7 +39,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
     });
 
     try {
-      final doses = await _firebaseService.getDoses(_medication.id);
+      final doses = await _firebaseService.getDosesForMedication(_medication.id);
       
       if (mounted) {
         setState(() {
@@ -67,7 +69,6 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
         builder: (context) => AddDoseScreen(
           medicationId: _medication.id,
           medicationName: _medication.name,
-          defaultUnit: _medication.strengthUnit,
           existingDose: existingDose,
         ),
       ),
@@ -98,7 +99,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
       type: _medication.type,
       strength: _medication.strength,
       strengthUnit: _medication.strengthUnit,
-      quantity: _medication.quantity,
+      tabletsInStock: _medication.currentInventory,
       quantityUnit: _medication.quantityUnit,
       currentInventory: _medication.currentInventory,
       reconstitutionVolume: volume,
@@ -148,7 +149,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                             const SizedBox(height: 16),
                             _buildDetailRow('Type', _medication.type.toString().split('.').last),
                             _buildDetailRow('Strength', '${_medication.strength} ${_medication.strengthUnit}'),
-                            _buildDetailRow('Quantity', '${_medication.quantity} ${_medication.quantityUnit}'),
+                            _buildDetailRow('Quantity', '${_medication.currentInventory} ${_medication.quantityUnit}'),
                             _buildDetailRow('Current Inventory', _medication.currentInventory.toString()),
                             if (_medication.reconstitutionVolume != null) ...[
                               const Divider(),
@@ -264,11 +265,10 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                           final result = await Navigator.push<Map<String, dynamic>>(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ReconstitutionCalculatorScreen(
-                                initialVialStrength: _medication.strength,
-                                initialVialStrengthUnit: _medication.strengthUnit,
-                                initialVialSize: _medication.quantity,
-                              ),
+                              builder: (context) => Scaffold(
+                                appBar: AppBar(title: const Text('Calculator')),
+                                body: const Center(child: Text('Calculator not implemented')),
+                              ), // ReconstitutionCalculatorScreen removed
                             ),
                           );
 
@@ -317,4 +317,4 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
       ),
     );
   }
-} 
+}

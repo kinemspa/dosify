@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/dose.dart';
 import '../../../models/medication.dart';
-import '../../../models/medication_schedule.dart';
+import '../../../models/schedule.dart';
 import '../../../models/notification_settings.dart';
 import '../../../services/firebase_service.dart';
+import '../../../services/service_locator.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../theme/app_decorations.dart';
@@ -14,7 +15,7 @@ import '../../../widgets/confirmation_dialog.dart';
 class ScheduleDoseScreen extends StatefulWidget {
   final Medication medication;
   final Dose dose;
-  final MedicationSchedule? existingSchedule;
+  final Schedule? existingSchedule;
 
   const ScheduleDoseScreen({
     super.key,
@@ -31,7 +32,7 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseService _firebaseService = serviceLocator<FirebaseService>();
   
   bool _isLoading = false;
   bool _isEditing = false;
@@ -135,9 +136,8 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
       );
       
       // Create schedule
-      final schedule = MedicationSchedule(
+      final schedule = Schedule(
         id: _isEditing ? widget.existingSchedule!.id : const Uuid().v4(),
-        medicationId: widget.medication.id,
         doseId: widget.dose.id,
         name: _nameController.text,
         frequency: _frequency,
@@ -159,7 +159,7 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
       );
       
       // Save to Firebase
-      await _firebaseService.addMedicationSchedule(schedule);
+      await _firebaseService.addSchedule(schedule);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,10 +207,9 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
     });
     
     try {
-      await _firebaseService.deleteMedicationSchedule(
-        widget.existingSchedule!.id,
-        widget.medication.id,
+      await _firebaseService.deleteSchedule(
         widget.dose.id,
+        widget.existingSchedule!.id,
       );
       
       if (mounted) {
@@ -314,7 +313,7 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
           decoration: AppDecorations.inputField(
             labelText: 'Frequency',
           ),
-          items: ScheduleFrequency.values.map((freq) {
+        items: ScheduleFrequency.values.map((freq) {
             String displayName;
             switch (freq) {
               case ScheduleFrequency.once:
@@ -927,4 +926,4 @@ class _ScheduleDoseScreenState extends State<ScheduleDoseScreen> {
             ),
     );
   }
-} 
+}

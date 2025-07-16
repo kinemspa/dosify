@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../models/dose.dart';
 import '../../../models/medication.dart';
-import '../../../models/medication_schedule.dart';
+import '../../../models/schedule.dart';
 import '../../../services/firebase_service.dart';
+import '../../../services/service_locator.dart';
 import '../../../theme/app_colors.dart';
 import 'schedule_dose_screen.dart';
 
@@ -21,9 +22,9 @@ class ViewSchedulesScreen extends StatefulWidget {
 }
 
 class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseService _firebaseService = serviceLocator<FirebaseService>();
   bool _isLoading = true;
-  List<MedicationSchedule> _schedules = [];
+  List<Schedule> _schedules = [];
   
   @override
   void initState() {
@@ -37,10 +38,7 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
     });
     
     try {
-      final schedules = await _firebaseService.getMedicationSchedules(
-        widget.medication.id,
-        widget.dose.id,
-      );
+      final schedules = await _firebaseService.getSchedulesForDose(widget.dose.id);
       
       if (mounted) {
         setState(() {
@@ -63,7 +61,7 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
     }
   }
   
-  Future<void> _markDoseTaken(MedicationSchedule schedule, DateTime doseDateTime) async {
+  Future<void> _markDoseTaken(Schedule schedule, DateTime doseDateTime) async {
     setState(() {
       _isLoading = true;
     });
@@ -97,7 +95,7 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
     }
   }
   
-  Future<void> _navigateToScheduleScreen({MedicationSchedule? existingSchedule}) async {
+  Future<void> _navigateToScheduleScreen({Schedule? existingSchedule}) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -115,7 +113,7 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
     }
   }
   
-  Widget _buildScheduleCard(MedicationSchedule schedule) {
+  Widget _buildScheduleCard(Schedule schedule) {
     final now = DateTime.now();
     final upcomingDoses = schedule.getUpcomingDoses(
       from: now,
@@ -255,7 +253,7 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
                 itemCount: upcomingDoses.length.clamp(0, 5), // Show max 5 upcoming doses
                 itemBuilder: (context, index) {
                   final doseDateTime = upcomingDoses[index];
-                  final doseStatus = schedule.doseStatuses[doseDateTime];
+            final doseStatus = schedule.doseStatuses[doseDateTime];
                   
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -387,4 +385,4 @@ class _ViewSchedulesScreenState extends State<ViewSchedulesScreen> {
       ),
     );
   }
-} 
+}

@@ -4,7 +4,9 @@ import '../../../models/medication.dart';
 import '../../../services/firebase_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_decorations.dart';
+import '../../../theme/app_text_styles.dart';
 import '../../../widgets/medication_confirmation_dialog.dart';
+import '../../../utils/input_validator.dart';
 import '../../base_service_screen.dart';
 
 class AddTabletMedicationScreen extends BaseServiceScreen {
@@ -43,8 +45,8 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
     });
 
     try {
-      // Parse name
-      final String name = _nameController.text;
+      // Parse and sanitize name
+      final String name = InputValidator.sanitizeInput(_nameController.text.trim());
       print('Parsed name: $name');
       
       // Parse strength value
@@ -84,10 +86,12 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
         type: MedicationType.tablet,
         strength: strength,
         strengthUnit: _strengthUnit,
-        quantity: quantity,
+        tabletsInStock: inventory,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        userId: firebaseService.currentUserId ?? '',
         quantityUnit: _quantityUnit,
         currentInventory: inventory,
-        lastInventoryUpdate: DateTime.now(),
       );
       
       // Save to Firebase
@@ -236,10 +240,8 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
                 hintText: 'Enter medication name',
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter medication name';
-                }
-                return null;
+                final result = InputValidator.validateMedicationName(value);
+                return result.hasError ? result.error : null;
               },
             ),
             const SizedBox(height: 16),
@@ -255,13 +257,8 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
+                      final result = InputValidator.validateMedicationStrength(value);
+                      return result.hasError ? result.error : null;
                     },
                   ),
                 ),
@@ -302,13 +299,8 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
+                      final result = InputValidator.validatePositiveNumber(value, 'Package quantity');
+                      return result.hasError ? result.error : null;
                     },
                   ),
                 ),
@@ -333,13 +325,8 @@ class _AddTabletMedicationScreenState extends BaseServiceScreenState<AddTabletMe
               ),
               keyboardType: TextInputType.number,
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Required';
-                }
-                if (double.tryParse(value) == null) {
-                  return 'Invalid number';
-                }
-                return null;
+                final result = InputValidator.validateInventoryCount(value);
+                return result.hasError ? result.error : null;
               },
             ),
             const SizedBox(height: 32),

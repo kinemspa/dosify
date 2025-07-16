@@ -7,6 +7,7 @@ import 'firebase_service.dart';
 import 'encryption_service.dart';
 import 'cache_manager.dart';
 import 'query_optimizer.dart';
+import 'offline_sync_service.dart';
 
 /// Service locator for dependency injection
 /// 
@@ -53,28 +54,39 @@ class ServiceLocator {
       
       // Register app services
       _instance.registerSingleton<EncryptionService>(
-        EncryptionService(
-          sharedPreferences: _instance.get<SharedPreferences>(),
-        ),
+        EncryptionService(),
       );
       
       _instance.registerSingleton<CacheManager>(
         CacheManager(
-          sharedPreferences: _instance.get<SharedPreferences>(),
+          prefs: _instance.get<SharedPreferences>(),
         ),
       );
       
       _instance.registerSingleton<QueryOptimizer>(
         QueryOptimizer(
-          cacheManager: _instance.get<CacheManager>(),
+          firestore: _instance.get<FirebaseFirestore>(),
+          prefs: _instance.get<SharedPreferences>(),
         ),
       );
       
       _instance.registerSingleton<FirebaseService>(
         FirebaseService(
-          auth: _instance.get<FirebaseAuth>(),
           firestore: _instance.get<FirebaseFirestore>(),
+          auth: _instance.get<FirebaseAuth>(),
           encryptionService: _instance.get<EncryptionService>(),
+          prefs: _instance.get<SharedPreferences>(),
+          queryOptimizer: _instance.get<QueryOptimizer>(),
+          cacheManager: _instance.get<CacheManager>(),
+        ),
+      );
+      
+      _instance.registerSingleton<OfflineSyncService>(
+        OfflineSyncService(
+          firestore: _instance.get<FirebaseFirestore>(),
+          auth: _instance.get<FirebaseAuth>(),
+          encryptionService: _instance.get<EncryptionService>(),
+          prefs: _instance.get<SharedPreferences>(),
           cacheManager: _instance.get<CacheManager>(),
         ),
       );

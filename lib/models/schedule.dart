@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'notification_settings.dart';
+import 'dose.dart';
 
 enum ScheduleFrequency {
   once,
@@ -14,13 +15,7 @@ enum ScheduleFrequency {
   custom
 }
 
-enum DoseStatus {
-  pending,
-  taken,
-  missed,
-  skipped,
-  postponed
-}
+// DoseStatus moved to dose.dart to avoid conflicts
 
 class Schedule {
   final String id;
@@ -307,29 +302,4 @@ class Schedule {
       deductFromInventory: map['deductFromInventory'] as bool? ?? true,
     );
   }
-  
-  // Factory method to create from MedicationSchedule (for migration)
-  factory Schedule.fromMedicationSchedule(dynamic medicationSchedule) {
-    return Schedule(
-      id: medicationSchedule.id,
-      doseId: medicationSchedule.doseId,
-      medicationId: medicationSchedule.medicationId,
-      name: medicationSchedule.name,
-      frequency: medicationSchedule.frequency,
-      startDate: medicationSchedule.startDate,
-      endDate: medicationSchedule.endDate,
-      times: medicationSchedule.times,
-      daysOfWeek: medicationSchedule.daysOfWeek,
-      daysOfMonth: medicationSchedule.daysOfMonth,
-      daysOn: medicationSchedule.daysOn,
-      daysOff: medicationSchedule.daysOff,
-      weeksOn: medicationSchedule.weeksOn,
-      weeksOff: medicationSchedule.weeksOff,
-      doseStatuses: medicationSchedule.doseStatuses,
-      notificationSettings: medicationSchedule.notificationSettings,
-      notes: medicationSchedule.notes,
-      isActive: medicationSchedule.isActive,
-      deductFromInventory: medicationSchedule.deductFromInventory,
-    );
-  }
-} 
+}

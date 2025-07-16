@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:async/async.dart';
 import '../../models/medication.dart';
+import '../../models/injection_type.dart';
 import '../../services/firebase_service.dart';
+import '../../services/service_locator.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_decorations.dart';
+import '../../theme/app_text_styles.dart';
 import '../base_service_screen.dart';
 import 'add_medication/add_medication_type_screen.dart';
 import 'details/medication_detail_screen.dart';
@@ -136,6 +139,26 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
           color = Colors.indigo;
         }
         break;
+      case MedicationType.preFilledSyringe:
+        icon = Icons.vaccines;
+        color = Colors.teal;
+        break;
+      case MedicationType.vialPreMixed:
+        icon = Icons.science;
+        color = Colors.blue;
+        break;
+      case MedicationType.vialPowderedKnown:
+        icon = Icons.science;
+        color = Colors.purple;
+        break;
+      case MedicationType.vialPowderedRecon:
+        icon = Icons.science;
+        color = Colors.indigo;
+        break;
+      default:
+        icon = Icons.medication;
+        color = Colors.grey;
+        break;
     }
 
     // Get medication type display text
@@ -256,6 +279,16 @@ class _MedicationListScreenState extends BaseServiceScreenState<MedicationListSc
         } else {
           return 'Vial';
         }
+      case MedicationType.preFilledSyringe:
+        return 'Prefilled Syringe';
+      case MedicationType.vialPreMixed:
+        return 'Pre-mixed Vial';
+      case MedicationType.vialPowderedKnown:
+        return 'Powdered Vial (Known)';
+      case MedicationType.vialPowderedRecon:
+        return 'Powdered Vial (Recon)';
+      default:
+        return 'Medication';
     }
   }
 

@@ -1,23 +1,96 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as crypto;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 
-/// Service for handling data encryption and decryption
+/// Service for handling data encryption and decryption using AES-256
 class EncryptionService {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+  
   static const _keyTag = 'encryption_key';
+  static const _ivTag = 'encryption_iv';
   bool _isInitialized = false;
+  
+  crypto.Encrypter? _encrypter;
+  late crypto.IV _iv;
 
-  /// Initialize encryption
+  /// Initialize encryption with secure key generation
   Future<void> initialize() async {
     if (_isInitialized) return;
     
     try {
       _log('Initializing encryption service');
+      
+      // Generate or retrieve encryption key
+      final keyString = await _getOrGenerateKey();
+      final key = crypto.Key.fromBase64(keyString);
+      
+      // Generate or retrieve IV
+      final ivString = await _getOrGenerateIV();
+      _iv = crypto.IV.fromBase64(ivString);
+      
+      // Initialize encrypter with AES-256-CBC
+      _encrypter = crypto.Encrypter(crypto.AES(key, mode: crypto.AESMode.cbc));
+      
       _isInitialized = true;
-    } catch (e) {
-      _logError('Error initializing encryption service', e);
+      _log('Encryption service initialized successfully');
+    } catch (e, stackTrace) {
+      _logError('Error initializing encryption service', e, stackTrace);
+      rethrow;
+    }
+  }
+  
+  /// Generate or retrieve encryption key from secure storage
+  Future<String> _getOrGenerateKey() async {
+    try {
+      String? existingKey = await _storage.read(key: _keyTag);
+      
+      if (existingKey != null && existingKey.isNotEmpty) {
+        _log('Retrieved existing encryption key from secure storage');
+        return existingKey;
+      }
+      
+      // Generate new 256-bit key
+      final key = crypto.Key.fromSecureRandom(32);
+      final keyString = key.base64;
+      
+      await _storage.write(key: _keyTag, value: keyString);
+      _log('Generated and stored new encryption key');
+      return keyString;
+      
+    } catch (e, stackTrace) {
+      _logError('Error managing encryption key', e, stackTrace);
+      rethrow;
+    }
+  }
+  
+  /// Generate or retrieve IV from secure storage
+  Future<String> _getOrGenerateIV() async {
+    try {
+      String? existingIV = await _storage.read(key: _ivTag);
+      
+      if (existingIV != null && existingIV.isNotEmpty) {
+        _log('Retrieved existing IV from secure storage');
+        return existingIV;
+      }
+      
+      // Generate new IV
+      final iv = crypto.IV.fromSecureRandom(16);
+      final ivString = iv.base64;
+      
+      await _storage.write(key: _ivTag, value: ivString);
+      _log('Generated and stored new IV');
+      return ivString;
+      
+    } catch (e, stackTrace) {
+      _logError('Error managing IV', e, stackTrace);
+      rethrow;
     }
   }
   
@@ -28,48 +101,67 @@ class EncryptionService {
     }
   }
 
-  /// Encrypt sensitive data
+  /// Encrypt sensitive data using AES-256
   Future<String> encrypt(String data) async {
     await _ensureInitialized();
     
+    if (_encrypter == null) {
+      throw Exception('Encryption service not properly initialized');
+    }
+    
     try {
-      // Simple base64 encoding for now
-      return base64.encode(utf8.encode(data));
-    } catch (e) {
-      _logError('Error in encryption', e);
-      // Return a safe fallback if encoding fails
-      return base64.encode(utf8.encode('encryption_error'));
+      // Input validation
+      if (data.isEmpty) {
+        throw ArgumentError('Cannot encrypt empty data');
+      }
+      
+      // Encrypt the data
+      final encrypted = _encrypter!.encrypt(data, iv: _iv);
+      return encrypted.base64;
+      
+    } catch (e, stackTrace) {
+      _logError('Error encrypting data', e, stackTrace);
+      rethrow;
     }
   }
 
-  /// Decrypt sensitive data
+  /// Decrypt sensitive data using AES-256
   Future<String> decrypt(String encryptedData) async {
     await _ensureInitialized();
     
+    if (_encrypter == null) {
+      throw Exception('Encryption service not properly initialized');
+    }
+    
     try {
-      // Add padding if needed to make it valid base64
-      String paddedData = encryptedData;
-      while (paddedData.length % 4 != 0) {
-        paddedData += '=';
+      // Input validation
+      if (encryptedData.isEmpty) {
+        throw ArgumentError('Cannot decrypt empty data');
       }
       
-      try {
-        final decoded = base64.decode(paddedData);
-        return utf8.decode(decoded);
-      } catch (e) {
-        _logError('Base64 decoding failed, returning original', e);
-        return encryptedData; // Return the original string if decoding fails
-      }
-    } catch (e) {
-      // If all decryption fails, return a placeholder value
-      _logError('Decryption error', e);
-      return 'Decryption Error';
+      // Decrypt the data
+      final encrypted = crypto.Encrypted.fromBase64(encryptedData);
+      final decrypted = _encrypter!.decrypt(encrypted, iv: _iv);
+      return decrypted;
+      
+    } catch (e, stackTrace) {
+      _logError('Error decrypting data', e, stackTrace);
+      rethrow;
     }
   }
 
   /// Hash sensitive data (for searching/indexing)
   String hashData(String data) {
-    return sha256.convert(utf8.encode(data)).toString();
+    if (data.isEmpty) {
+      return '';
+    }
+    
+    try {
+      return sha256.convert(utf8.encode(data)).toString();
+    } catch (e, stackTrace) {
+      _logError('Error hashing data', e, stackTrace);
+      rethrow;
+    }
   }
   
   /// Alias for encrypt for backward compatibility
@@ -82,171 +174,169 @@ class EncryptionService {
     return decrypt(encryptedData);
   }
 
-  /// Encrypt medication details
+  /// Encrypt medication details with proper error handling
   Future<Map<String, dynamic>> encryptMedicationData(Map<String, dynamic> medicationData) async {
     await _ensureInitialized();
     
     try {
-      _log('Encrypting medication data with fields: ${medicationData.keys.join(", ")}');
       Map<String, dynamic> encryptedData = {
         'type': medicationData['type'], // Non-sensitive enum
         'lastUpdate': DateTime.now().toIso8601String(),
       };
       
-      // Try to encrypt the name
-      try {
-        encryptedData['name'] = await encrypt(medicationData['name'].toString());
-        encryptedData['nameHash'] = hashData(medicationData['name'].toString()); // For searching
-      } catch (e) {
-        _logError('Error encrypting name', e);
-        encryptedData['name'] = medicationData['name'].toString();
-        encryptedData['nameHash'] = hashData(medicationData['name'].toString());
+      // Encrypt the name
+      if (medicationData.containsKey('name') && medicationData['name'] != null) {
+        final nameStr = medicationData['name'].toString();
+        encryptedData['name'] = await encrypt(nameStr);
+        encryptedData['nameHash'] = hashData(nameStr); // For searching
       }
       
       // Encrypt numeric values
       for (String field in ['strength', 'tabletsInStock']) {
-        if (medicationData.containsKey(field)) {
-          try {
-            _log('Encrypting $field: ${medicationData[field]}');
-            encryptedData[field] = await encrypt(medicationData[field].toString());
-          } catch (e) {
-            _logError('Error encrypting $field', e);
-            encryptedData[field] = medicationData[field].toString();
-          }
+        if (medicationData.containsKey(field) && medicationData[field] != null) {
+          encryptedData[field] = await encrypt(medicationData[field].toString());
         }
       }
       
       // Encrypt string values
       for (String field in ['strengthUnit', 'quantityUnit']) {
-        if (medicationData.containsKey(field)) {
-          try {
-            _log('Encrypting $field: ${medicationData[field]}');
-            encryptedData[field] = await encrypt(medicationData[field].toString());
-          } catch (e) {
-            _logError('Error encrypting $field', e);
-            encryptedData[field] = medicationData[field].toString();
-          }
+        if (medicationData.containsKey(field) && medicationData[field] != null) {
+          encryptedData[field] = await encrypt(medicationData[field].toString());
         }
       }
       
       // Handle optional fields
       for (String field in ['reconstitutionVolume', 'reconstitutionVolumeUnit', 'concentrationAfterReconstitution']) {
         if (medicationData.containsKey(field) && medicationData[field] != null) {
-          try {
-            _log('Encrypting optional field $field: ${medicationData[field]}');
-            encryptedData[field] = await encrypt(medicationData[field].toString());
-          } catch (e) {
-            _logError('Error encrypting optional field $field', e);
-            if (medicationData[field] != null) {
-              encryptedData[field] = medicationData[field].toString();
-            }
-          }
+          encryptedData[field] = await encrypt(medicationData[field].toString());
         }
       }
       
-      _log('Medication data encryption complete');
       return encryptedData;
-    } catch (e) {
-      _logError('Error encrypting medication data', e);
-      // Return unencrypted data as fallback
-      return {
-        ...medicationData,
-        'lastUpdate': DateTime.now().toIso8601String(),
-        'encryptionFailed': true,
-      };
+      
+    } catch (e, stackTrace) {
+      _logError('Error encrypting medication data', e, stackTrace);
+      rethrow;
     }
   }
 
-  /// Decrypt medication details
+  /// Decrypt medication details with proper error handling
   Future<Map<String, dynamic>> decryptMedicationData(Map<String, dynamic> encryptedData) async {
     await _ensureInitialized();
     
     try {
-      _log('Decrypting medication data with fields: ${encryptedData.keys.join(", ")}');
       Map<String, dynamic> decryptedData = {
         'type': encryptedData['type'], // Non-sensitive enum
         'lastUpdate': encryptedData['lastUpdate'],
       };
       
       // Decrypt name
-      if (encryptedData.containsKey('name')) {
-        try {
-          decryptedData['name'] = await decrypt(encryptedData['name'].toString());
-          _log('Decrypted name: ${decryptedData['name']}');
-        } catch (e) {
-          _logError('Error decrypting name', e);
-          decryptedData['name'] = encryptedData['name'].toString();
-        }
+      if (encryptedData.containsKey('name') && encryptedData['name'] != null) {
+        decryptedData['name'] = await decrypt(encryptedData['name'].toString());
       }
       
       // Decrypt numeric values
       for (String field in ['strength', 'tabletsInStock']) {
-        if (encryptedData.containsKey(field)) {
-          try {
-            final decrypted = await decrypt(encryptedData[field].toString());
-            decryptedData[field] = double.tryParse(decrypted) ?? 0.0;
-          } catch (e) {
-            _logError('Error decrypting $field', e);
-            decryptedData[field] = 0.0;
-          }
+        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
+          final decrypted = await decrypt(encryptedData[field].toString());
+          decryptedData[field] = double.tryParse(decrypted) ?? 0.0;
         }
       }
       
       // Decrypt string values
       for (String field in ['strengthUnit', 'quantityUnit']) {
-        if (encryptedData.containsKey(field)) {
-          try {
-            decryptedData[field] = await decrypt(encryptedData[field].toString());
-          } catch (e) {
-            _logError('Error decrypting $field', e);
-            decryptedData[field] = encryptedData[field].toString();
-          }
+        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
+          decryptedData[field] = await decrypt(encryptedData[field].toString());
         }
       }
       
       // Handle optional fields
       for (String field in ['reconstitutionVolume', 'reconstitutionVolumeUnit', 'concentrationAfterReconstitution']) {
         if (encryptedData.containsKey(field) && encryptedData[field] != null) {
-          try {
-            final decrypted = await decrypt(encryptedData[field].toString());
-            if (field == 'reconstitutionVolume' || field == 'concentrationAfterReconstitution') {
-              decryptedData[field] = double.tryParse(decrypted);
-            } else {
-              decryptedData[field] = decrypted;
-            }
-          } catch (e) {
-            _logError('Error decrypting optional field $field', e);
-            decryptedData[field] = encryptedData[field];
+          final decrypted = await decrypt(encryptedData[field].toString());
+          if (field == 'reconstitutionVolume' || field == 'concentrationAfterReconstitution') {
+            decryptedData[field] = double.tryParse(decrypted);
+          } else {
+            decryptedData[field] = decrypted;
           }
         }
       }
       
-      _log('Medication data decryption complete');
       return decryptedData;
-    } catch (e) {
-      _logError('Error decrypting medication data', e);
-      // Return encrypted data as fallback
-      return encryptedData;
+      
+    } catch (e, stackTrace) {
+      _logError('Error decrypting medication data', e, stackTrace);
+      rethrow;
     }
   }
   
-  /// Improved logging for debugging
+  /// Validate encrypted data integrity
+  Future<bool> validateEncryptedData(String encryptedData) async {
+    try {
+      await decrypt(encryptedData);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  /// Rotate encryption key (for security best practices)
+  Future<void> rotateKeys() async {
+    try {
+      _log('Starting key rotation');
+      
+      // Generate new key and IV
+      final newKey = crypto.Key.fromSecureRandom(32);
+      final newIV = crypto.IV.fromSecureRandom(16);
+      
+      // Store new key and IV
+      await _storage.write(key: _keyTag, value: newKey.base64);
+      await _storage.write(key: _ivTag, value: newIV.base64);
+      
+      // Update encrypter
+      _encrypter = crypto.Encrypter(crypto.AES(newKey, mode: crypto.AESMode.cbc));
+      _iv = newIV;
+      
+      _log('Key rotation completed successfully');
+    } catch (e, stackTrace) {
+      _logError('Error during key rotation', e, stackTrace);
+      rethrow;
+    }
+  }
+  
+  /// Clear all encryption keys (for testing or reset)
+  Future<void> clearKeys() async {
+    try {
+      await _storage.delete(key: _keyTag);
+      await _storage.delete(key: _ivTag);
+      _isInitialized = false;
+      _encrypter = null;
+      _log('Encryption keys cleared');
+    } catch (e, stackTrace) {
+      _logError('Error clearing keys', e, stackTrace);
+      rethrow;
+    }
+  }
+  
+  /// Get encryption status
+  bool get isInitialized => _isInitialized;
+  
+  /// Logging for debugging (only in debug mode, sanitized)
   void _log(String message) {
     if (kDebugMode) {
       print('EncryptionService: $message');
     }
   }
   
-  /// Error logging with stack trace
+  /// Error logging with stack trace (only in debug mode, sanitized)
   void _logError(String message, dynamic error, [StackTrace? stackTrace]) {
     if (kDebugMode) {
       print('EncryptionService ERROR: $message');
-      print('Error: $error');
+      // Don't log the actual error details to prevent sensitive data exposure
+      print('Error type: ${error.runtimeType}');
       if (stackTrace != null) {
-        print('Stack trace: $stackTrace');
-      } else if (error is Error) {
-        print('Stack trace: ${error.stackTrace}');
+        print('Stack trace available: true');
       }
     }
   }
-} 
+}

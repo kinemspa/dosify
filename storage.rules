@@ -1,0 +1,44 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to validate file types
+    function isValidImageType() {
+      return resource.contentType.matches('image/.*');
+    }
+    
+    // Helper function to validate file size (5MB limit)
+    function isValidSize() {
+      return resource.size < 5 * 1024 * 1024;
+    }
+    
+    // User-specific storage - users can only access their own files
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId) && isValidImageType() && isValidSize();
+      allow update: if isAuthenticated() && isOwner(userId) && isValidImageType() && isValidSize();
+    }
+    
+    // Medication images
+    match /medications/{userId}/{medicationId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId) && isValidImageType() && isValidSize();
+      allow update: if isAuthenticated() && isOwner(userId) && isValidImageType() && isValidSize();
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

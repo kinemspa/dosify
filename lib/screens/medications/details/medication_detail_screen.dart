@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../models/medication.dart';
+import '../../../models/injection_type.dart';
 import '../../../models/dose.dart';
 import '../../../services/firebase_service.dart';
+import '../../../services/service_locator.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/number_input_field.dart';
@@ -163,7 +166,7 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         builder: (context) => ReconstitutionCalculatorScreen(
           initialVialStrength: _medication.strength,
           initialVialStrengthUnit: _medication.strengthUnit,
-          initialVialSize: _medication.quantity,
+          initialVialSize: _medication.tabletsInStock,
         ),
       ),
     );
@@ -300,6 +303,16 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         } else {
           return Icons.water_drop;
         }
+      case MedicationType.preFilledSyringe:
+        return Icons.vaccines;
+      case MedicationType.vialPreMixed:
+        return Icons.science;
+      case MedicationType.vialPowderedKnown:
+        return Icons.science;
+      case MedicationType.vialPowderedRecon:
+        return Icons.science;
+      default:
+        return Icons.medication;
     }
   }
 
@@ -339,6 +352,16 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         } else {
           return Colors.indigo;
         }
+      case MedicationType.preFilledSyringe:
+        return Colors.teal;
+      case MedicationType.vialPreMixed:
+        return Colors.blue;
+      case MedicationType.vialPowderedKnown:
+        return Colors.purple;
+      case MedicationType.vialPowderedRecon:
+        return Colors.deepPurple;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -378,6 +401,16 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         } else {
           return 'Injection Vial';
         }
+      case MedicationType.preFilledSyringe:
+        return 'Pre-filled Syringe';
+      case MedicationType.vialPreMixed:
+        return 'Pre-mixed Vial';
+      case MedicationType.vialPowderedKnown:
+        return 'Powdered Vial (Known Concentration)';
+      case MedicationType.vialPowderedRecon:
+        return 'Powdered Vial (Recon)';
+      default:
+        return 'Medication';
     }
   }
 
@@ -390,6 +423,16 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         return Icons.medication;
       case MedicationType.injection:
         return Icons.vaccines;
+      case MedicationType.preFilledSyringe:
+        return Icons.vaccines;
+      case MedicationType.vialPreMixed:
+        return Icons.science;
+      case MedicationType.vialPowderedKnown:
+        return Icons.science;
+      case MedicationType.vialPowderedRecon:
+        return Icons.science;
+      default:
+        return Icons.medication;
     }
   }
   
@@ -416,6 +459,16 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         } else {
           return 'Injection';
         }
+      case MedicationType.preFilledSyringe:
+        return 'Pre-filled Syringe';
+      case MedicationType.vialPreMixed:
+        return 'Pre-mixed Vial';
+      case MedicationType.vialPowderedKnown:
+        return 'Powdered Vial (Known)';
+      case MedicationType.vialPowderedRecon:
+        return 'Powdered Vial (Recon)';
+      default:
+        return 'Medication';
     }
   }
   
@@ -458,6 +511,18 @@ class _MedicationDetailScreenState extends BaseServiceScreenState<MedicationDeta
         break;
       case MedicationType.injection:
         color = Colors.teal;
+        break;
+      case MedicationType.preFilledSyringe:
+        color = Colors.teal;
+        break;
+      case MedicationType.vialPreMixed:
+        color = Colors.blue;
+        break;
+      case MedicationType.vialPowderedKnown:
+        color = Colors.purple;
+        break;
+      case MedicationType.vialPowderedRecon:
+        color = Colors.deepPurple;
         break;
     }
     

@@ -126,6 +126,7 @@ class _AddDoseScreenState extends BaseServiceScreenState<AddDoseScreen> {
           unit: _unit,
           name: name,
           notes: notes,
+          scheduledTime: DateTime.now(), // Default to now for immediate doses
         );
         
         // Save to Firebase
@@ -177,7 +178,7 @@ class _AddDoseScreenState extends BaseServiceScreenState<AddDoseScreen> {
       });
       
       try {
-        await firebaseService.deleteDose(widget.existingDose!.id, widget.medicationId);
+        await firebaseService.deleteDose(widget.existingDose!.id);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -237,6 +237,26 @@ class _DashboardPageState extends BaseServiceScreenState<DashboardPage> {
         icon = Icons.vaccines;
         color = Colors.teal;
         break;
+      case MedicationType.preFilledSyringe:
+        icon = Icons.vaccines;
+        color = Colors.green;
+        break;
+      case MedicationType.vialPreMixed:
+        icon = Icons.science;
+        color = Colors.purple;
+        break;
+      case MedicationType.vialPowderedKnown:
+        icon = Icons.science;
+        color = Colors.deepPurple;
+        break;
+      case MedicationType.vialPowderedRecon:
+        icon = Icons.science;
+        color = Colors.indigo;
+        break;
+      default:
+        icon = Icons.medication;
+        color = Colors.grey;
+        break;
     }
 
     return Card(

@@ -25,6 +25,17 @@ class AddMedicationTypeScreen extends StatelessWidget {
       case MedicationType.injection:
         screen = const InjectionTypeSelectionScreen();
         break;
+      case MedicationType.preFilledSyringe:
+      case MedicationType.vialPreMixed:
+      case MedicationType.vialPowderedKnown:
+      case MedicationType.vialPowderedRecon:
+        // These are handled within the InjectionTypeSelectionScreen
+        screen = const InjectionTypeSelectionScreen();
+        break;
+      default:
+        // Default to injection type selection for any new medication types
+        screen = const InjectionTypeSelectionScreen();
+        break;
     }
     
     // Navigate to the appropriate screen and wait for result

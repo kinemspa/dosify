@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/medication.dart';
+import '../../../models/injection_type.dart';
 import '../../../widgets/help_card.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/medication_confirmation_dialog.dart';
@@ -103,6 +104,7 @@ class _PrefilledSyringeMedicationScreenState extends BaseInjectionMedicationScre
   @override
   Medication createMedicationObject({
     required String uuid,
+    required String name,
     required double strength,
     required double quantity,
     required double inventory,
@@ -120,11 +122,11 @@ class _PrefilledSyringeMedicationScreenState extends BaseInjectionMedicationScre
     
     return Medication(
       id: uuid,
-      name: nameController.text,
+      name: name,
       type: MedicationType.injection,
       strength: strength,
       strengthUnit: strengthUnit,
-      quantity: quantity,
+      tabletsInStock: quantity,
       quantityUnit: quantityUnit,
       currentInventory: inventory,
       lastInventoryUpdate: DateTime.now(),
@@ -134,7 +136,7 @@ class _PrefilledSyringeMedicationScreenState extends BaseInjectionMedicationScre
       isPrefillPen: false,
       needsReconstitution: false,
       routeOfAdministration: routeOfAdministration,
-      notes: notes,
+      notes: _needleGaugeController.text.isNotEmpty ? 'Needle gauge: ${_needleGaugeController.text}' : null,
     );
   }
   

@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to validate required fields for medications
+    function isValidMedication(medication) {
+      return medication.keys().hasAll(['name', 'type', 'strength', 'strengthUnit', 'lastUpdate']) &&
+             medication.name is string &&
+             medication.type is string &&
+             medication.strength is string &&
+             medication.strengthUnit is string &&
+             medication.lastUpdate is string;
+    }
+    
+    // Helper function to validate required fields for doses
+    function isValidDose(dose) {
+      return dose.keys().hasAll(['medicationId', 'amount', 'unit', 'lastUpdate']) &&
+             dose.medicationId is string &&
+             dose.amount is string &&
+             dose.unit is string &&
+             dose.lastUpdate is string;
+    }
+    
+    // Helper function to validate required fields for schedules
+    function isValidSchedule(schedule) {
+      return schedule.keys().hasAll(['doseId', 'name', 'frequency', 'startDate', 'lastUpdate']) &&
+             schedule.doseId is string &&
+             schedule.name is string &&
+             schedule.frequency is number &&
+             schedule.startDate is string &&
+             schedule.lastUpdate is string;
+    }
+    
+    // User documents - users can only access their own data
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Medications collection
+      match /medications/{medicationId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+        allow create: if isAuthenticated() && isOwner(userId) && isValidMedication(resource.data);
+        allow update: if isAuthenticated() && isOwner(userId) && isValidMedication(resource.data);
+        
+        // Doses sub-collection
+        match /doses/{doseId} {
+          allow read, write: if isAuthenticated() && isOwner(userId);
+          allow create: if isAuthenticated() && isOwner(userId) && isValidDose(resource.data);
+          allow update: if isAuthenticated() && isOwner(userId) && isValidDose(resource.data);
+          
+          // Schedules sub-collection
+          match /schedules/{scheduleId} {
+            allow read, write: if isAuthenticated() && isOwner(userId);
+            allow create: if isAuthenticated() && isOwner(userId) && isValidSchedule(resource.data);
+            allow update: if isAuthenticated() && isOwner(userId) && isValidSchedule(resource.data);
+          }
+        }
+      }
+      
+      // Direct schedules collection (for backward compatibility)
+      match /schedules/{scheduleId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+        allow create: if isAuthenticated() && isOwner(userId) && isValidSchedule(resource.data);
+        allow update: if isAuthenticated() && isOwner(userId) && isValidSchedule(resource.data);
+      }
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../models/medication.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../theme/app_decorations.dart';
-import '../../widgets/medication_confirmation_dialog.dart';
+import '../../../models/medication.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_decorations.dart';
+import '../../../widgets/medication_confirmation_dialog.dart';
+import '../../../utils/input_validator.dart';
 
 class AddMedicationForm extends StatefulWidget {
   final MedicationType medicationType;
@@ -46,13 +47,14 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
         return 'tablets';
       case MedicationType.injection:
         return 'vials';
-      // The following cases are commented out as they are planned for future expansion
-      // case MedicationType.preFilledSyringe:
-      //   return 'syringes';
-      // case MedicationType.vialPreMixed:
-      // case MedicationType.vialPowderedKnown:
-      // case MedicationType.vialPowderedRecon:
-      //   return 'vials';
+      case MedicationType.preFilledSyringe:
+        return 'syringes';
+      case MedicationType.vialPreMixed:
+      case MedicationType.vialPowderedKnown:
+      case MedicationType.vialPowderedRecon:
+        return 'vials';
+      default:
+        return 'units';
     }
   }
 
@@ -63,7 +65,7 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
   void _handleSave() {
     if (_formKey.currentState!.validate()) {
       final data = {
-        'name': _nameController.text,
+        'name': InputValidator.sanitizeInput(_nameController.text.trim()),
         'type': widget.medicationType,
         'strength': double.parse(_strengthController.text),
         'strengthUnit': _strengthUnit,
@@ -172,10 +174,8 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
                 hintText: 'Enter medication name',
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter medication name';
-                }
-                return null;
+                final result = InputValidator.validateMedicationName(value);
+                return result.hasError ? result.error : null;
               },
             ),
             const SizedBox(height: 16),
@@ -191,13 +191,8 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
+                      final result = InputValidator.validateMedicationStrength(value);
+                      return result.hasError ? result.error : null;
                     },
                   ),
                 ),
@@ -238,13 +233,8 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
+                      final result = InputValidator.validatePositiveNumber(value, 'Package quantity');
+                      return result.hasError ? result.error : null;
                     },
                   ),
                 ),
@@ -269,13 +259,8 @@ class _AddMedicationFormState extends State<AddMedicationForm> {
               ),
               keyboardType: TextInputType.number,
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Required';
-                }
-                if (double.tryParse(value) == null) {
-                  return 'Invalid number';
-                }
-                return null;
+                final result = InputValidator.validateInventoryCount(value);
+                return result.hasError ? result.error : null;
               },
             ),
             if (widget.additionalFields != null) ...[

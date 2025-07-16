@@ -69,10 +69,10 @@ class _AddCapsuleMedicationScreenState extends BaseServiceScreenState<AddCapsule
       }
       
       // Parse current inventory value
-      final double currentInventory;
+      final double inventory;
       try {
-        currentInventory = double.parse(_currentInventoryController.text);
-        print('Parsed current inventory: $currentInventory $_quantityUnit');
+        inventory = double.parse(_currentInventoryController.text);
+        print('Parsed current inventory: $inventory $_quantityUnit');
       } catch (e) {
         print('Error parsing current inventory: ${_currentInventoryController.text}');
         throw Exception('Invalid current inventory value');
@@ -85,10 +85,11 @@ class _AddCapsuleMedicationScreenState extends BaseServiceScreenState<AddCapsule
         type: MedicationType.capsule,
         strength: strength,
         strengthUnit: _strengthUnit,
-        quantity: quantity,
+        tabletsInStock: quantity,
         quantityUnit: _quantityUnit,
-        currentInventory: currentInventory,
+        currentInventory: inventory,
         lastInventoryUpdate: DateTime.now(),
+        userId: firebaseService.currentUserId ?? '',
       );
       
       // Save to Firebase

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/schedule.dart';
+import '../../../models/dose.dart';
 import '../../../models/notification_settings.dart';
 import '../../../services/firebase_service.dart';
 import '../../../services/service_locator.dart';
@@ -851,4 +852,4 @@ extension StringExtension on String {
   String capitalize() {
     return "${this[0].toUpperCase()}${substring(1)}";
   }
-} 
+}

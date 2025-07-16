@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/medication.dart';
+import '../../../models/injection_type.dart';
 import '../../../services/firebase_service.dart';
 import '../../../services/service_locator.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/number_input_field.dart';
 import '../../../widgets/input_field_row.dart';
 import '../../../widgets/medication_confirmation_dialog.dart';
+import '../../../utils/input_validator.dart';
 import '../../base_service_screen.dart';
 
 /// Base abstract class for all injection medication screens
@@ -26,7 +28,7 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
   // Common properties
   String strengthUnit = 'mg';
   String quantityUnit = 'mL';
-  bool isLoading = false;
+  bool _isLoadingSave = false;
   
   // Injection type that this screen handles
   InjectionType get injectionType;
@@ -75,7 +77,7 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
     }
 
     setState(() {
-      isLoading = true;
+      _isLoadingSave = true;
     });
 
     try {
@@ -94,6 +96,7 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
       // Create medication object with common fields
       final medication = createMedicationObject(
         uuid: uuid,
+        name: InputValidator.sanitizeInput(nameController.text.trim()),
         strength: strength,
         quantity: quantity,
         inventory: inventory,
@@ -125,7 +128,7 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
     } finally {
       if (mounted) {
         setState(() {
-          isLoading = false;
+          _isLoadingSave = false;
         });
       }
     }
@@ -134,6 +137,7 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
   // Method to create the medication object - to be implemented by subclasses
   Medication createMedicationObject({
     required String uuid,
+    required String name,
     required double strength,
     required double quantity,
     required double inventory,
@@ -250,6 +254,8 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
         return 'cartridge';
       case InjectionType.ampule:
         return 'ampule';
+      default:
+        return 'unit';
     }
   }
   
@@ -300,10 +306,8 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
                       hintText: 'Enter medication name',
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter medication name';
-                      }
-                      return null;
+                      final result = InputValidator.validateMedicationName(value);
+                      return result.hasError ? result.error : null;
                     },
                   ),
                   const SizedBox(height: 24),
@@ -387,11 +391,11 @@ abstract class BaseInjectionMedicationScreenState<T extends BaseInjectionMedicat
                   
                   // Save Button
                   ElevatedButton(
-                    onPressed: isLoading ? null : showConfirmationDialog,
+                    onPressed: _isLoadingSave ? null : showConfirmationDialog,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: isLoading
+                    child: _isLoadingSave
                         ? const SizedBox(
                             height: 20,
                             width: 20,

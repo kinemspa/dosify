@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/medication.dart';
+import '../models/dose.dart';
 import '../models/schedule.dart';
 import '../services/firebase_service.dart';
 import '../services/service_locator.dart';
@@ -65,10 +66,7 @@ class _UpcomingDosesWidgetState extends State<UpcomingDosesWidget> {
         
         for (final dose in doses) {
           // Get schedules for this dose
-          final schedules = await _firebaseService.getMedicationSchedules(
-            medication.id, 
-            dose.id
-          );
+          final schedules = await _firebaseService.getSchedulesForDose(dose.id);
           
           for (final schedule in schedules) {
             // Only process active schedules
@@ -375,7 +373,7 @@ class _UpcomingDosesWidgetState extends State<UpcomingDosesWidget> {
       // Use the DoseStatus from medication_schedule.dart
       final updatedSchedule = item['schedule'].markDoseStatus(
           item['dateTime'], DoseStatus.skipped);
-      await _firebaseService.addMedicationSchedule(updatedSchedule);
+      await _firebaseService.updateSchedule(updatedSchedule);
       
       // Refresh the list
       _loadUpcomingDoses();
@@ -399,4 +397,4 @@ class _UpcomingDosesWidgetState extends State<UpcomingDosesWidget> {
       }
     }
   }
-} 
+}

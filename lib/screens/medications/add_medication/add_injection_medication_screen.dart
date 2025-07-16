@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/medication.dart';
+import '../../../models/injection_type.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/number_input_field.dart';
@@ -166,7 +167,7 @@ class _AddInjectionMedicationScreenState extends BaseServiceScreenState<AddInjec
         type: MedicationType.injection,
         strength: strength,
         strengthUnit: _strengthUnit,
-        quantity: quantity,
+        tabletsInStock: quantity,
         quantityUnit: _quantityUnit,
         currentInventory: inventory,
         lastInventoryUpdate: DateTime.now(),

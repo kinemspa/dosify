@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:io';
 import '../services/service_locator.dart';
 import '../services/firebase_service.dart';
 import '../services/encryption_service.dart';
 import '../services/cache_manager.dart';
 import '../services/query_optimizer.dart';
+import '../services/offline_sync_service.dart';
 
 /// Base class for screens that need access to services
 /// 
@@ -23,7 +28,7 @@ abstract class BaseServiceScreen extends StatefulWidget {
 /// - Error handling methods
 /// - Loading state management
 /// - UI helpers for common states
-abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
+abstract class BaseServiceScreenState<T extends BaseServiceScreen> extends State<T> {
   /// Firebase service instance
   FirebaseService get firebaseService => ServiceLocator.get<FirebaseService>();
   
@@ -35,6 +40,9 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
   
   /// Query optimizer instance
   QueryOptimizer get queryOptimizer => ServiceLocator.get<QueryOptimizer>();
+  
+  /// Offline sync service instance
+  OfflineSyncService get offlineSyncService => ServiceLocator.get<OfflineSyncService>();
   
   /// Current error message to display
   String? _errorMessage;
@@ -108,19 +116,21 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
   /// 2. Clear any existing errors
   /// 3. Execute the operation
   /// 4. Set loading state to false
-  /// 5. Handle any errors
+  /// 5. Handle any errors with proper error categorization
   /// 
   /// [operation] - The async operation to execute
   /// [onSuccess] - Optional callback when operation succeeds
   /// [onError] - Optional custom error handler
   /// [showLoadingIndicator] - Whether to show loading indicator
   /// [criticalOnError] - Whether errors should be treated as critical
+  /// [timeout] - Optional timeout for the operation
   Future<T?> executeWithLoading<T>(
     Future<T> Function() operation, {
     Function(T result)? onSuccess,
     Function(Object error)? onError,
     bool showLoadingIndicator = true,
     bool criticalOnError = false,
+    Duration? timeout,
   }) async {
     if (showLoadingIndicator) {
       setLoading(true);
@@ -128,7 +138,20 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
     clearError();
     
     try {
-      final result = await operation();
+      Future<T> operationFuture = operation();
+      
+      // Add timeout if specified
+      if (timeout != null) {
+        operationFuture = operationFuture.timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            'Operation timed out after ${timeout.inSeconds} seconds',
+            timeout,
+          ),
+        );
+      }
+      
+      final result = await operationFuture;
       if (onSuccess != null) {
         onSuccess(result);
       }
@@ -137,7 +160,8 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
       if (onError != null) {
         onError(e);
       } else {
-        setError('An error occurred: ${e.toString()}', isCritical: criticalOnError);
+        final errorInfo = _categorizeError(e);
+        setError(errorInfo.message, isCritical: errorInfo.isCritical || criticalOnError);
       }
       return null;
     } finally {
@@ -145,6 +169,141 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
         setLoading(false);
       }
     }
+  }
+  
+  /// Categorize errors and provide user-friendly messages
+  ErrorInfo _categorizeError(Object error) {
+    if (error is FirebaseAuthException) {
+      return _handleFirebaseAuthError(error);
+    } else if (error is FirebaseException) {
+      return _handleFirebaseError(error);
+    } else if (error is SocketException) {
+      return ErrorInfo(
+        message: 'Network connection error. Please check your internet connection and try again.',
+        isCritical: false,
+        category: ErrorCategory.network,
+      );
+    } else if (error is TimeoutException) {
+      return ErrorInfo(
+        message: 'Operation timed out. Please try again.',
+        isCritical: false,
+        category: ErrorCategory.timeout,
+      );
+    } else if (error is FormatException) {
+      return ErrorInfo(
+        message: 'Invalid data format. Please check your input and try again.',
+        isCritical: false,
+        category: ErrorCategory.validation,
+      );
+    } else {
+      return ErrorInfo(
+        message: 'An unexpected error occurred. Please try again.',
+        isCritical: true,
+        category: ErrorCategory.unknown,
+      );
+    }
+  }
+  
+  /// Handle Firebase Authentication errors
+  ErrorInfo _handleFirebaseAuthError(FirebaseAuthException error) {
+    String message;
+    bool isCritical = false;
+    
+    switch (error.code) {
+      case 'user-not-found':
+        message = 'No account found with this email address.';
+        break;
+      case 'wrong-password':
+        message = 'Incorrect password. Please try again.';
+        break;
+      case 'invalid-email':
+        message = 'Please enter a valid email address.';
+        break;
+      case 'user-disabled':
+        message = 'This account has been disabled. Please contact support.';
+        isCritical = true;
+        break;
+      case 'too-many-requests':
+        message = 'Too many failed attempts. Please try again later.';
+        break;
+      case 'network-request-failed':
+        message = 'Network error. Please check your connection and try again.';
+        break;
+      case 'weak-password':
+        message = 'Password is too weak. Please choose a stronger password.';
+        break;
+      case 'email-already-in-use':
+        message = 'An account already exists with this email address.';
+        break;
+      default:
+        message = error.message ?? 'Authentication failed. Please try again.';
+        break;
+    }
+    
+    return ErrorInfo(
+      message: message,
+      isCritical: isCritical,
+      category: ErrorCategory.authentication,
+    );
+  }
+  
+  /// Handle Firebase Firestore errors
+  ErrorInfo _handleFirebaseError(FirebaseException error) {
+    String message;
+    bool isCritical = false;
+    
+    switch (error.code) {
+      case 'permission-denied':
+        message = 'Access denied. Please check your permissions.';
+        isCritical = true;
+        break;
+      case 'not-found':
+        message = 'Requested data not found.';
+        break;
+      case 'already-exists':
+        message = 'Data already exists.';
+        break;
+      case 'resource-exhausted':
+        message = 'Service temporarily unavailable. Please try again later.';
+        break;
+      case 'failed-precondition':
+        message = 'Operation cannot be completed. Please try again.';
+        break;
+      case 'aborted':
+        message = 'Operation was aborted. Please try again.';
+        break;
+      case 'out-of-range':
+        message = 'Invalid data range. Please check your input.';
+        break;
+      case 'unimplemented':
+        message = 'Feature not available. Please contact support.';
+        isCritical = true;
+        break;
+      case 'internal':
+        message = 'Internal server error. Please try again later.';
+        isCritical = true;
+        break;
+      case 'unavailable':
+        message = 'Service temporarily unavailable. Please try again later.';
+        break;
+      case 'data-loss':
+        message = 'Data corruption detected. Please contact support.';
+        isCritical = true;
+        break;
+      case 'unauthenticated':
+        message = 'Please sign in to continue.';
+        isCritical = true;
+        break;
+      default:
+        message = error.message ?? 'Database error. Please try again.';
+        break;
+    }
+    
+    return ErrorInfo(
+      message: message,
+      isCritical: isCritical,
+      category: ErrorCategory.database,
+    );
   }
   
   /// Build a loading indicator widget
@@ -292,4 +451,28 @@ abstract class BaseServiceState<T extends BaseServiceScreen> extends State<T> {
       ],
     );
   }
+}
+
+/// Error categories for better error handling
+enum ErrorCategory {
+  authentication,
+  database,
+  network,
+  timeout,
+  validation,
+  encryption,
+  unknown,
+}
+
+/// Error information container
+class ErrorInfo {
+  final String message;
+  final bool isCritical;
+  final ErrorCategory category;
+  
+  const ErrorInfo({
+    required this.message,
+    required this.isCritical,
+    required this.category,
+  });
 } 
