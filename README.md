@@ -334,5 +334,6 @@ The following updates have been applied to address the Code Improvement Plan:
 - **General Refactoring**: Improved dependency injection, added documentation, optimized performance with caching and query optimizations.
 - **File Changes**: Deleted `lib/models/medication_schedule.dart`, added new files like `lib/services/offline_sync_service.dart`, `lib/core/`, etc.
 - **Dependencies**: Updated `pubspec.yaml` and `pubspec.lock` for new packages.
+- **Firebase Service Refactoring**: Extracted internal classes (FirebaseConnectionManager, MedicationRepository, DoseRepository, ScheduleRepository, FirebaseCacheManager, FirebaseErrorHandler) to separate files in lib/services/ for better modularity and maintainability. Updated FirebaseService to import and use these extracted classes.
 
 These changes enhance the app's maintainability, performance, and offline capabilities.
