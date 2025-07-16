@@ -198,6 +198,8 @@ class FirebaseService implements Disposable {
   // Public API - Utility Operations
   Future<void> clearAllMedications() => _cacheOperations.clearAllMedications();
   
+  Future<List<Medication>> getLocalMedications() => _cacheOperations.getAllMedicationsLocally();
+  
   Future<MedicationStats> getMedicationStats() => 
       _medicationRepository.getMedicationStats();
 

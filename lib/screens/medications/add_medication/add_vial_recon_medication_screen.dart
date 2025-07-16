@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../../models/medication.dart';
 import '../../../theme/app_decorations.dart';
 import '../../../widgets/input_field_row.dart';
@@ -25,6 +28,57 @@ class _AddVialReconMedicationScreenState extends BaseServiceScreenState<AddVialR
     _reconVolumeController.dispose();
     _concentrationController.dispose();
     super.dispose();
+  }
+
+  void showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showSuccessDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  OverlayEntry? _loadingOverlay;
+
+  void showLoadingDialog() {
+    _loadingOverlay = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_loadingOverlay!);
+  }
+
+  void hideDialog() {
+    _loadingOverlay?.remove();
+    _loadingOverlay = null;
   }
 
   Future<void> _handleSave(BuildContext context, Map<String, dynamic> data) async {
@@ -54,7 +108,7 @@ class _AddVialReconMedicationScreenState extends BaseServiceScreenState<AddVialR
         needsReconstitution: true,
       );
 
-      await medicationRepository.addMedication(medication);
+      await firebaseService.addMedication(medication);
 
       hideDialog();
       showSuccessDialog('Success', 'Medication saved successfully');

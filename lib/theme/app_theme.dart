@@ -4,21 +4,22 @@ import 'app_text_styles.dart';
 
 class AppTheme {
   static ThemeData get darkTheme {
+    final colorScheme = ColorScheme.dark(
+      primary: AppColors.darkPrimary,
+      secondary: AppColors.darkSecondary,
+      surface: AppColors.darkSurface,
+      background: AppColors.darkBackground,
+      error: AppColors.error,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: AppColors.darkTextPrimary,
+      onBackground: AppColors.darkTextPrimary,
+      onError: Colors.white,
+    );
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
-        primary: AppColors.darkPrimary,
-        secondary: AppColors.darkSecondary,
-        surface: AppColors.darkSurface,
-        background: AppColors.darkBackground,
-        error: AppColors.error,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: AppColors.darkTextPrimary,
-        onBackground: AppColors.darkTextPrimary,
-        onError: Colors.white,
-      ),
+      colorScheme: colorScheme,
       
       scaffoldBackgroundColor: AppColors.darkBackground,
       
@@ -37,11 +38,11 @@ class AppTheme {
       // App Bar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.darkPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 16,
-        titleTextStyle: AppTextStyles.h2.copyWith(color: Colors.white),
+        titleTextStyle: AppTextStyles.h2.copyWith(color: colorScheme.onPrimary),
       ),
 
       // Card Theme
@@ -143,21 +144,22 @@ class AppTheme {
   }
   
   static ThemeData get lightTheme {
+    final colorScheme = ColorScheme.light(
+      primary: AppColors.lightPrimary,
+      secondary: AppColors.lightSecondary,
+      surface: AppColors.lightSurface,
+      background: AppColors.lightBackground,
+      error: AppColors.error,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: AppColors.lightTextPrimary,
+      onBackground: AppColors.lightTextPrimary,
+      onError: Colors.white,
+    );
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.light(
-        primary: AppColors.lightPrimary,
-        secondary: AppColors.lightSecondary,
-        surface: AppColors.lightSurface,
-        background: AppColors.lightBackground,
-        error: AppColors.error,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: AppColors.lightTextPrimary,
-        onBackground: AppColors.lightTextPrimary,
-        onError: Colors.white,
-      ),
+      colorScheme: colorScheme,
       
       scaffoldBackgroundColor: AppColors.lightBackground,
       
@@ -176,11 +178,11 @@ class AppTheme {
       // App Bar Theme - Updated to use teal colors
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.lightPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         centerTitle: false,
         titleSpacing: 16,
-        titleTextStyle: AppTextStyles.lightH2.copyWith(color: Colors.white),
+        titleTextStyle: AppTextStyles.lightH2.copyWith(color: colorScheme.onPrimary),
       ),
 
       // Card Theme
@@ -280,4 +282,4 @@ class AppTheme {
       ),
     );
   }
-} 
+}
