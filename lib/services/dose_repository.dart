@@ -39,7 +39,7 @@ class DoseRepository {
     final userId = _requireUserId();
     
     try {
-      final doseData = _prepareDoseData(dose, userId);
+      final doseData = await _prepareDoseData(dose, userId);
       
       await _collection.doc(dose.id).set(doseData)
           .timeout(_operationTimeout);
@@ -55,7 +55,7 @@ class DoseRepository {
     final userId = _requireUserId();
     
     try {
-      final doseData = _prepareDoseData(dose, userId);
+      final doseData = await _prepareDoseData(dose, userId);
       doseData['updatedAt'] = DateTime.now().toIso8601String();
       
       await _collection.doc(dose.id).update(doseData)
@@ -99,7 +99,8 @@ class DoseRepository {
           final data = doc.data() as Map<String, dynamic>;
           data['id'] = doc.id;
           
-          final dose = Dose.fromFirestore(data);
+          final decryptedData = await _encryptionService.decryptDoseData(data);
+          final dose = Dose.fromFirestore(decryptedData);
           doses.add(dose);
         } catch (e) {
           _log('Error processing dose ${doc.id}: $e');
@@ -113,8 +114,8 @@ class DoseRepository {
     }
   }
 
-  Map<String, dynamic> _prepareDoseData(Dose dose, String userId) {
-    return {
+  Future<Map<String, dynamic>> _prepareDoseData(Dose dose, String userId) async {
+    final doseData = {
       'medicationId': dose.medicationId,
       'amount': dose.amount,
       'unit': dose.unit,
@@ -125,6 +126,8 @@ class DoseRepository {
       'userId': userId,
       'createdAt': Timestamp.fromDate(dose.createdAt ?? DateTime.now()),
     };
+    
+    return await _encryptionService.encryptDoseData(doseData);
   }
 
   String _requireUserId() {

@@ -38,7 +38,7 @@ class ScheduleRepository {
     final userId = _requireUserId();
     
     try {
-      final scheduleData = schedule.toMap();
+      final scheduleData = await _encryptionService.encryptScheduleData(schedule.toMap());
       scheduleData['userId'] = userId;
       scheduleData['updatedAt'] = DateTime.now().toIso8601String();
       
@@ -57,7 +57,7 @@ class ScheduleRepository {
     final userId = _requireUserId();
     
     try {
-      final scheduleData = schedule.toMap();
+      final scheduleData = await _encryptionService.encryptScheduleData(schedule.toMap());
       scheduleData['userId'] = userId;
       scheduleData['updatedAt'] = DateTime.now().toIso8601String();
       
@@ -102,7 +102,8 @@ class ScheduleRepository {
         try {
           final data = doc.data() as Map<String, dynamic>;
           data['id'] = doc.id;
-          schedules.add(Schedule.fromMap(data));
+          final decryptedData = await _encryptionService.decryptScheduleData(data);
+          schedules.add(Schedule.fromMap(decryptedData));
         } catch (e) {
           _log('Error processing schedule ${doc.id}: $e');
         }

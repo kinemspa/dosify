@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/medication.dart';
 import '../../services/firebase_service.dart';
 import '../../theme/app_colors.dart';
@@ -65,17 +66,11 @@ class _HomeScreenState extends BaseServiceScreenState<HomeScreen> {
       appBar: AppBar(
         title: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Dosify'),
-              Text(
-                _getScreenTitle(),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
-                ),
-              ),
-            ],
+          child: Text(
+            _getScreenTitle(),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         centerTitle: false,
@@ -200,11 +195,22 @@ class DashboardPage extends BaseServiceScreen {
 class _DashboardPageState extends BaseServiceScreenState<DashboardPage> {
   int _selectedStatIndex = 0;
   bool _isLoading = true;
+  bool _showWelcome = false;
 
   @override
   void initState() {
     super.initState();
+    _checkFirstLaunch();
     _initializeFirebase();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    _showWelcome = prefs.getBool('first_launch') ?? true;
+    if (_showWelcome) {
+      await prefs.setBool('first_launch', false);
+    }
+    setState(() {});
   }
 
   Future<void> _initializeFirebase() async {
@@ -310,25 +316,27 @@ class _DashboardPageState extends BaseServiceScreenState<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Welcome Section
-              Text(
-                'Welcome to Dosify',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black87,
+              if (_showWelcome) ...[
+                Text(
+                  'Welcome to Dosify',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black87,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your medication management assistant',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white70
-                      : Colors.black54,
+                const SizedBox(height: 8),
+                Text(
+                  'Your medication management assistant',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : Colors.black54,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               
               // Upcoming Doses Section
               _buildSectionHeader(

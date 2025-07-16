@@ -179,38 +179,31 @@ class EncryptionService {
     await _ensureInitialized();
     
     try {
-      Map<String, dynamic> encryptedData = {
-        'type': medicationData['type'], // Non-sensitive enum
-        'lastUpdate': DateTime.now().toIso8601String(),
-      };
+      Map<String, dynamic> encryptedData = {...medicationData};
       
       // Encrypt the name
-      if (medicationData.containsKey('name') && medicationData['name'] != null) {
-        final nameStr = medicationData['name'].toString();
+      if (encryptedData.containsKey('name') && encryptedData['name'] != null) {
+        final nameStr = encryptedData['name'].toString();
         encryptedData['name'] = await encrypt(nameStr);
         encryptedData['nameHash'] = hashData(nameStr); // For searching
       }
       
       // Encrypt numeric values
-      for (String field in ['strength', 'tabletsInStock']) {
-        if (medicationData.containsKey(field) && medicationData[field] != null) {
-          encryptedData[field] = await encrypt(medicationData[field].toString());
+      for (String field in ['strength', 'tabletsInStock', 'currentInventory', 'reconstitutionVolume', 'concentrationAfterReconstitution']) {
+        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
+          encryptedData[field] = await encrypt(encryptedData[field].toString());
         }
       }
       
       // Encrypt string values
-      for (String field in ['strengthUnit', 'quantityUnit']) {
-        if (medicationData.containsKey(field) && medicationData[field] != null) {
-          encryptedData[field] = await encrypt(medicationData[field].toString());
+      for (String field in ['strengthUnit', 'quantityUnit', 'reconstitutionVolumeUnit']) {
+        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
+          encryptedData[field] = await encrypt(encryptedData[field].toString());
         }
       }
       
-      // Handle optional fields
-      for (String field in ['reconstitutionVolume', 'reconstitutionVolumeUnit', 'concentrationAfterReconstitution']) {
-        if (medicationData.containsKey(field) && medicationData[field] != null) {
-          encryptedData[field] = await encrypt(medicationData[field].toString());
-        }
-      }
+      // Add or update lastUpdate
+      encryptedData['lastUpdate'] = DateTime.now().toIso8601String();
       
       return encryptedData;
       
@@ -225,47 +218,140 @@ class EncryptionService {
     await _ensureInitialized();
     
     try {
-      Map<String, dynamic> decryptedData = {
-        'type': encryptedData['type'], // Non-sensitive enum
-        'lastUpdate': encryptedData['lastUpdate'],
-      };
+      Map<String, dynamic> decryptedData = {...encryptedData};
       
       // Decrypt name
-      if (encryptedData.containsKey('name') && encryptedData['name'] != null) {
-        decryptedData['name'] = await decrypt(encryptedData['name'].toString());
+      if (decryptedData.containsKey('name') && decryptedData['name'] != null) {
+        decryptedData['name'] = await decrypt(decryptedData['name'].toString());
       }
       
       // Decrypt numeric values
-      for (String field in ['strength', 'tabletsInStock']) {
-        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
-          final decrypted = await decrypt(encryptedData[field].toString());
+      for (String field in ['strength', 'tabletsInStock', 'currentInventory', 'reconstitutionVolume', 'concentrationAfterReconstitution']) {
+        if (decryptedData.containsKey(field) && decryptedData[field] != null) {
+          final decrypted = await decrypt(decryptedData[field].toString());
           decryptedData[field] = double.tryParse(decrypted) ?? 0.0;
         }
       }
       
       // Decrypt string values
-      for (String field in ['strengthUnit', 'quantityUnit']) {
-        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
-          decryptedData[field] = await decrypt(encryptedData[field].toString());
+      for (String field in ['strengthUnit', 'quantityUnit', 'reconstitutionVolumeUnit']) {
+        if (decryptedData.containsKey(field) && decryptedData[field] != null) {
+          decryptedData[field] = await decrypt(decryptedData[field].toString());
         }
       }
       
-      // Handle optional fields
-      for (String field in ['reconstitutionVolume', 'reconstitutionVolumeUnit', 'concentrationAfterReconstitution']) {
+      // Remove hash fields if present
+      decryptedData.remove('nameHash');
+      
+      return decryptedData;
+      
+    } catch (e, stackTrace) {
+      _logError('Error decrypting medication data', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Encrypt dose details with proper error handling
+  Future<Map<String, dynamic>> encryptDoseData(Map<String, dynamic> doseData) async {
+    await _ensureInitialized();
+    
+    try {
+      Map<String, dynamic> encryptedData = {...doseData};
+      
+      // Encrypt string values
+      for (String field in ['unit', 'name', 'notes']) {
         if (encryptedData.containsKey(field) && encryptedData[field] != null) {
-          final decrypted = await decrypt(encryptedData[field].toString());
-          if (field == 'reconstitutionVolume' || field == 'concentrationAfterReconstitution') {
-            decryptedData[field] = double.tryParse(decrypted);
-          } else {
-            decryptedData[field] = decrypted;
-          }
+          encryptedData[field] = await encrypt(encryptedData[field].toString());
+        }
+      }
+      
+      // Encrypt numeric values
+      if (encryptedData.containsKey('amount') && encryptedData['amount'] != null) {
+        encryptedData['amount'] = await encrypt(encryptedData['amount'].toString());
+      }
+      
+      // Add or update lastUpdate
+      encryptedData['lastUpdate'] = DateTime.now().toIso8601String();
+      
+      return encryptedData;
+      
+    } catch (e, stackTrace) {
+      _logError('Error encrypting dose data', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Decrypt dose details with proper error handling
+  Future<Map<String, dynamic>> decryptDoseData(Map<String, dynamic> encryptedData) async {
+    await _ensureInitialized();
+    
+    try {
+      Map<String, dynamic> decryptedData = {...encryptedData};
+      
+      // Decrypt string values
+      for (String field in ['unit', 'name', 'notes']) {
+        if (decryptedData.containsKey(field) && decryptedData[field] != null) {
+          decryptedData[field] = await decrypt(decryptedData[field].toString());
+        }
+      }
+      
+      // Decrypt numeric values
+      if (decryptedData.containsKey('amount') && decryptedData['amount'] != null) {
+        final decrypted = await decrypt(decryptedData['amount'].toString());
+        decryptedData['amount'] = double.tryParse(decrypted) ?? 0.0;
+      }
+      
+      return decryptedData;
+      
+    } catch (e, stackTrace) {
+      _logError('Error decrypting dose data', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Encrypt schedule details with proper error handling
+  Future<Map<String, dynamic>> encryptScheduleData(Map<String, dynamic> scheduleData) async {
+    await _ensureInitialized();
+    
+    try {
+      Map<String, dynamic> encryptedData = {...scheduleData};
+      
+      // Encrypt string values
+      for (String field in ['notes']) {
+        if (encryptedData.containsKey(field) && encryptedData[field] != null) {
+          encryptedData[field] = await encrypt(encryptedData[field].toString());
+        }
+      }
+      
+      // Add or update lastUpdate
+      encryptedData['lastUpdate'] = DateTime.now().toIso8601String();
+      
+      return encryptedData;
+      
+    } catch (e, stackTrace) {
+      _logError('Error encrypting schedule data', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Decrypt schedule details with proper error handling
+  Future<Map<String, dynamic>> decryptScheduleData(Map<String, dynamic> encryptedData) async {
+    await _ensureInitialized();
+    
+    try {
+      Map<String, dynamic> decryptedData = {...encryptedData};
+      
+      // Decrypt string values
+      for (String field in ['notes']) {
+        if (decryptedData.containsKey(field) && decryptedData[field] != null) {
+          decryptedData[field] = await decrypt(decryptedData[field].toString());
         }
       }
       
       return decryptedData;
       
     } catch (e, stackTrace) {
-      _logError('Error decrypting medication data', e, stackTrace);
+      _logError('Error decrypting schedule data', e, stackTrace);
       rethrow;
     }
   }
