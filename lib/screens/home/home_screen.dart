@@ -13,6 +13,7 @@ import '../medications/medication_list_screen.dart';
 import '../medications/tools/reconstitution_calculator_screen.dart';
 import '../medications/details/medication_detail_screen.dart';
 import '../../widgets/upcoming_doses_widget.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends BaseServiceScreen {
   const HomeScreen({super.key});
@@ -593,8 +594,6 @@ class SchedulePage extends StatelessWidget {
     );
   }
 }
-
-import '../settings/settings_screen.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
